@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classroom Control</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="auth-view" class="center-card">
+    <h1>Classroom Control</h1>
+    <p>Sign in with Google to continue.</p>
+    <button id="google-login-btn" class="btn primary">Sign in with Google</button>
+  </div>
+
+  <div id="app-view" class="hidden">
+    <header class="topbar">
+      <div>
+        <h2>Classroom Control</h2>
+        <p id="topbar-role"></p>
+      </div>
+      <div class="topbar-right">
+        <span id="user-pill"></span>
+        <button id="logout-btn" class="btn">Log out</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <button data-tab="screens" class="tab-btn active">Screens</button>
+        <button data-tab="students" class="tab-btn">Students</button>
+        <button data-tab="settings" class="tab-btn">Settings</button>
+        <button data-tab="admin" class="tab-btn hidden" id="admin-tab-btn">Admin</button>
+      </aside>
+
+      <section class="content">
+        <div id="status-banner" class="banner"></div>
+
+        <section id="screens-tab" class="tab active">
+          <div class="card row-between">
+            <div>
+              <h3>Screens</h3>
+              <p id="class-code-display">No active class yet.</p>
+            </div>
+            <button id="refresh-screens-btn" class="btn">Refresh</button>
+          </div>
+          <div id="screens-grid" class="screens-grid"></div>
+        </section>
+
+        <section id="students-tab" class="tab">
+          <div class="card">
+            <h3>Students</h3>
+            <div id="students-list"></div>
+          </div>
+        </section>
+
+        <section id="settings-tab" class="tab">
+          <div class="card">
+            <h3>Blocking Settings</h3>
+            <label>Blocked domains (comma-separated)</label>
+            <textarea id="blocked-domains" rows="3" placeholder="example.com, youtube.com"></textarea>
+
+            <label>Blocked categories</label>
+            <div class="category-row">
+              <label><input type="checkbox" value="social" class="cat-box"> Social</label>
+              <label><input type="checkbox" value="games" class="cat-box"> Games</label>
+              <label><input type="checkbox" value="adult" class="cat-box"> Adult</label>
+              <label><input type="checkbox" value="streaming" class="cat-box"> Streaming</label>
+            </div>
+
+            <button id="save-settings-btn" class="btn primary">Save settings</button>
+          </div>
+        </section>
+
+        <section id="admin-tab" class="tab">
+          <div class="card">
+            <h3>Admin Teacher Approvals</h3>
+            <p>Admin account: <strong>antonkrupinski0@gmail.com</strong></p>
+            <div id="pending-teachers"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="setup-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Set Up Your Classroom</h3>
+      <label>Your name</label>
+      <input id="teacher-name" type="text" placeholder="Teacher name">
+      <label>Class type</label>
+      <select id="class-type">
+        <option value="Math">Math</option>
+        <option value="Science">Science</option>
+        <option value="English">English</option>
+        <option value="History">History</option>
+        <option value="Other">Other</option>
+      </select>
+      <button id="complete-setup-btn" class="btn primary">Create classroom</button>
+    </div>
+  </div>
+
+  <div id="screen-modal" class="modal hidden">
+    <div class="modal-content large">
+      <div class="row-between">
+        <h3 id="screen-modal-title">Student screen</h3>
+        <button id="close-screen-modal" class="btn">Close</button>
+      </div>
+      <img id="screen-modal-image" alt="Student screen">
+      <div class="command-bar">
+        <input id="lock-url-input" type="url" placeholder="https://school-resource.com/lesson">
+        <button id="lock-url-btn" class="btn primary">Lock to URL</button>
+        <button id="unlock-url-btn" class="btn">Unlock</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
