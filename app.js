@@ -3,6 +3,8 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -28,6 +30,7 @@ const googleProvider = new GoogleAuthProvider();
 const authView = document.getElementById("auth-view");
 const appView = document.getElementById("app-view");
 const googleLoginBtn = document.getElementById("google-login-btn");
+const authStatus = document.getElementById("auth-status");
 const logoutBtn = document.getElementById("logout-btn");
 const statusBanner = document.getElementById("status-banner");
 const userPill = document.getElementById("user-pill");
@@ -73,9 +76,7 @@ tabs.forEach((btn) => {
   });
 });
 
-googleLoginBtn.addEventListener("click", async () => {
-  await signInWithPopup(auth, googleProvider);
-});
+googleLoginBtn.addEventListener("click", handleGoogleLogin);
 
 logoutBtn.addEventListener("click", async () => {
   await signOut(auth);
@@ -116,6 +117,31 @@ onAuthStateChanged(auth, async (user) => {
     await mountTeacherFlow(user);
   }
 });
+
+initRedirectResult();
+
+async function initRedirectResult() {
+  try {
+    await getRedirectResult(auth);
+  } catch (error) {
+    setAuthError(error);
+  }
+}
+
+async function handleGoogleLogin() {
+  setAuthMessage("Opening Google sign-in...");
+  try {
+    await signInWithPopup(auth, googleProvider);
+    setAuthMessage("");
+  } catch (error) {
+    if (shouldFallbackToRedirect(error)) {
+      setAuthMessage("Popup was blocked/closed. Redirecting to Google sign-in...");
+      await signInWithRedirect(auth, googleProvider);
+      return;
+    }
+    setAuthError(error);
+  }
+}
 
 async function ensureAdminRecord(user) {
   const userRef = ref(db, `users/${user.uid}`);
@@ -359,4 +385,19 @@ function generateClassCode() {
     code += chars[Math.floor(Math.random() * chars.length)];
   }
   return code;
+}
+
+function shouldFallbackToRedirect(error) {
+  const code = error?.code || "";
+  return code === "auth/popup-blocked" || code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request";
+}
+
+function setAuthError(error) {
+  const code = error?.code || "unknown";
+  const message = error?.message || "Google sign-in failed.";
+  setAuthMessage(`${message} (${code})`);
+}
+
+function setAuthMessage(message) {
+  if (authStatus) authStatus.textContent = message;
 }
