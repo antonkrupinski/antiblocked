@@ -36,10 +36,11 @@ const statusBanner = document.getElementById("status-banner");
 const userPill = document.getElementById("user-pill");
 const topbarRole = document.getElementById("topbar-role");
 const classCodeDisplay = document.getElementById("class-code-display");
+const copyClassCodeBtn = document.getElementById("copy-class-code-btn");
 const screensGrid = document.getElementById("screens-grid");
 const studentsList = document.getElementById("students-list");
 const blockedDomainsInput = document.getElementById("blocked-domains");
-const categoryBoxes = document.querySelectorAll(".cat-box");
+const blockedCategoriesSelect = document.getElementById("blocked-categories");
 const saveSettingsBtn = document.getElementById("save-settings-btn");
 const pendingTeachers = document.getElementById("pending-teachers");
 const adminTabBtn = document.getElementById("admin-tab-btn");
@@ -85,6 +86,7 @@ logoutBtn.addEventListener("click", async () => {
 completeSetupBtn.addEventListener("click", createClassroomForTeacher);
 saveSettingsBtn.addEventListener("click", saveClassroomSettings);
 refreshScreensBtn.addEventListener("click", renderClassroomViews);
+copyClassCodeBtn.addEventListener("click", copyClassCode);
 closeScreenModal.addEventListener("click", () => screenModal.classList.add("hidden"));
 lockUrlBtn.addEventListener("click", () => pushControlCommand("LOCK_URL"));
 unlockUrlBtn.addEventListener("click", () => pushControlCommand("UNLOCK_URL"));
@@ -283,7 +285,7 @@ function watchClassroom() {
 function renderClassroomViews() {
   if (!classroomData) return;
 
-  classCodeDisplay.textContent = `Class code: ${classroomData.classCode || "N/A"}`;
+  classCodeDisplay.textContent = classroomData.classCode || "------";
 
   const students = classroomData.students || {};
   const studentIds = Object.keys(students).filter((id) => students[id]?.active);
@@ -331,9 +333,24 @@ function renderClassroomViews() {
 
   const settings = classroomData.settings || {};
   blockedDomainsInput.value = (settings.blockedDomains || []).join(", ");
-  categoryBoxes.forEach((box) => {
-    box.checked = (settings.blockedCategories || []).includes(box.value);
+  const selectedCategories = new Set(settings.blockedCategories || []);
+  Array.from(blockedCategoriesSelect.options).forEach((option) => {
+    option.selected = selectedCategories.has(option.value);
   });
+}
+
+async function copyClassCode() {
+  const code = classCodeDisplay.textContent.trim();
+  if (!code || code === "------") {
+    statusBanner.textContent = "No class code yet. Create your classroom first.";
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(code);
+    statusBanner.textContent = `Class code copied: ${code}`;
+  } catch {
+    statusBanner.textContent = `Copy failed. Class code: ${code}`;
+  }
 }
 
 function openScreenModal(studentId, student) {
@@ -365,9 +382,7 @@ async function saveClassroomSettings() {
     .split(",")
     .map((d) => d.trim().toLowerCase())
     .filter(Boolean);
-  const categories = Array.from(categoryBoxes)
-    .filter((box) => box.checked)
-    .map((box) => box.value);
+  const categories = Array.from(blockedCategoriesSelect.selectedOptions).map((option) => option.value);
 
   await update(ref(db, `${classRefPath}/settings`), {
     blockedDomains: domains,

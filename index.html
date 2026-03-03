@@ -50,7 +50,11 @@
           <div class="card row-between">
             <div>
               <h3>Screens</h3>
-              <p id="class-code-display">No active class yet.</p>
+              <div class="class-code-wrap">
+                <span class="class-code-label">Class code</span>
+                <span id="class-code-display" class="class-code-pill">------</span>
+                <button id="copy-class-code-btn" class="btn">Copy</button>
+              </div>
             </div>
             <button id="refresh-screens-btn" class="btn">Refresh</button>
           </div>
@@ -71,12 +75,21 @@
             <textarea id="blocked-domains" rows="3" placeholder="example.com, youtube.com"></textarea>
 
             <label>Blocked categories</label>
-            <div class="category-row">
-              <label><input type="checkbox" value="social" class="cat-box"> Social</label>
-              <label><input type="checkbox" value="games" class="cat-box"> Games</label>
-              <label><input type="checkbox" value="adult" class="cat-box"> Adult</label>
-              <label><input type="checkbox" value="streaming" class="cat-box"> Streaming</label>
-            </div>
+            <select id="blocked-categories" class="category-dropdown" multiple size="10">
+              <option value="social">Social Media</option>
+              <option value="games">Games</option>
+              <option value="adult">Adult Content</option>
+              <option value="streaming">Streaming Video</option>
+              <option value="shopping">Shopping</option>
+              <option value="chat">Chat & Messaging</option>
+              <option value="news">News</option>
+              <option value="sports">Sports</option>
+              <option value="music">Music</option>
+              <option value="ai-tools">AI Tools</option>
+              <option value="vpn-proxy">VPN/Proxy</option>
+              <option value="gambling">Gambling</option>
+            </select>
+            <p class="form-help">Hold Cmd/Ctrl to select multiple categories.</p>
 
             <button id="save-settings-btn" class="btn primary">Save settings</button>
           </div>
