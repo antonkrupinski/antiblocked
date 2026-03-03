@@ -20,7 +20,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import { firebaseConfig } from "./firebase-config.js";
 
-const ADMIN_EMAIL = "antonkrupinski0@gmail.com";
+const SUPER_ADMIN_EMAIL = "antonkrupinski0@gmail.com";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -43,7 +43,12 @@ const blockedDomainsInput = document.getElementById("blocked-domains");
 const blockedCategoriesSelect = document.getElementById("blocked-categories");
 const saveSettingsBtn = document.getElementById("save-settings-btn");
 const pendingTeachers = document.getElementById("pending-teachers");
+const districtClassrooms = document.getElementById("district-classrooms");
 const adminTabBtn = document.getElementById("admin-tab-btn");
+const districtScopeText = document.getElementById("district-scope");
+const districtControls = document.getElementById("district-controls");
+const districtNameInput = document.getElementById("district-name-input");
+const createDistrictBtn = document.getElementById("create-district-btn");
 const setupModal = document.getElementById("setup-modal");
 const teacherNameInput = document.getElementById("teacher-name");
 const classTypeInput = document.getElementById("class-type");
@@ -57,67 +62,79 @@ const lockUrlInput = document.getElementById("lock-url-input");
 const lockUrlBtn = document.getElementById("lock-url-btn");
 const unlockUrlBtn = document.getElementById("unlock-url-btn");
 
+const screensTabBtn = document.querySelector('[data-tab="screens"]');
+const studentsTabBtn = document.querySelector('[data-tab="students"]');
+const settingsTabBtn = document.querySelector('[data-tab="settings"]');
+
 let currentUser = null;
-let teacherProfile = null;
+let userProfile = null;
 let classRefPath = "";
 let classroomData = null;
 let selectedStudentId = "";
-let stopTeacherWatcher = null;
+let adminContext = null;
+let districtsCache = {};
+let pendingCache = {};
+let classroomsCache = {};
+
+let stopUserWatcher = null;
 let stopClassroomWatcher = null;
+let stopPendingWatcher = null;
+let stopDistrictsWatcher = null;
+let stopAdminClassroomsWatcher = null;
+let lastApprovedState = false;
 
 const tabs = document.querySelectorAll(".tab-btn");
 
 tabs.forEach((btn) => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab-btn").forEach((t) => t.classList.remove("active"));
-    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
-    btn.classList.add("active");
-    const tab = document.getElementById(`${btn.dataset.tab}-tab`);
-    if (tab) tab.classList.add("active");
+    if (btn.classList.contains("hidden")) return;
+    activateTab(btn.dataset.tab);
   });
 });
 
 googleLoginBtn.addEventListener("click", handleGoogleLogin);
-
 logoutBtn.addEventListener("click", async () => {
   await signOut(auth);
 });
-
 completeSetupBtn.addEventListener("click", createClassroomForTeacher);
 saveSettingsBtn.addEventListener("click", saveClassroomSettings);
 refreshScreensBtn.addEventListener("click", renderClassroomViews);
 copyClassCodeBtn.addEventListener("click", copyClassCode);
+createDistrictBtn.addEventListener("click", createDistrict);
 closeScreenModal.addEventListener("click", () => screenModal.classList.add("hidden"));
 lockUrlBtn.addEventListener("click", () => pushControlCommand("LOCK_URL"));
 unlockUrlBtn.addEventListener("click", () => pushControlCommand("UNLOCK_URL"));
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
-  if (stopTeacherWatcher) {
-    stopTeacherWatcher();
-    stopTeacherWatcher = null;
-  }
+  cleanupAllWatchers();
+  classRefPath = "";
+  classroomData = null;
+  userProfile = null;
+  adminContext = null;
+  lastApprovedState = false;
+
   if (!user) {
     authView.classList.remove("hidden");
     appView.classList.add("hidden");
+    topbarRole.textContent = "";
     return;
   }
 
   authView.classList.add("hidden");
   appView.classList.remove("hidden");
-
   userPill.textContent = user.email;
   teacherNameInput.value = user.displayName || "";
 
-  if (user.email === ADMIN_EMAIL) {
-    await ensureAdminRecord(user);
-    topbarRole.textContent = "Role: Admin";
-    adminTabBtn.classList.remove("hidden");
-    await mountAdminPanel();
-  } else {
-    adminTabBtn.classList.add("hidden");
-    await mountTeacherFlow(user);
+  if (user.email === SUPER_ADMIN_EMAIL) {
+    await ensureSuperAdminRecord(user);
+    topbarRole.textContent = "Role: Super Admin";
+    setRoleUI("admin");
+    await mountAdminPanel({ role: "super_admin", districtId: null, districtName: "All districts" });
+    return;
   }
+
+  await mountUserFlow(user);
 });
 
 initRedirectResult();
@@ -145,19 +162,19 @@ async function handleGoogleLogin() {
   }
 }
 
-async function ensureAdminRecord(user) {
-  const userRef = ref(db, `users/${user.uid}`);
-  await set(userRef, {
+async function ensureSuperAdminRecord(user) {
+  await set(ref(db, `users/${user.uid}`), {
     email: user.email,
-    displayName: user.displayName || "Admin",
-    role: "admin",
+    displayName: user.displayName || "Super Admin",
+    role: "super_admin",
     approved: true,
+    districtId: null,
+    districtName: "All districts",
     updatedAt: Date.now()
   });
 }
 
-async function mountTeacherFlow(user) {
-  topbarRole.textContent = "Role: Teacher";
+async function mountUserFlow(user) {
   const userRef = ref(db, `users/${user.uid}`);
   const snap = await get(userRef);
 
@@ -167,8 +184,11 @@ async function mountTeacherFlow(user) {
       displayName: user.displayName || "",
       role: "teacher",
       approved: false,
+      districtId: null,
+      districtName: "",
       updatedAt: Date.now()
     });
+
     await set(ref(db, `pendingTeachers/${user.uid}`), {
       uid: user.uid,
       email: user.email,
@@ -177,61 +197,262 @@ async function mountTeacherFlow(user) {
     });
   }
 
-  stopTeacherWatcher = onValue(userRef, (profileSnap) => {
-    teacherProfile = profileSnap.val() || {};
+  stopUserWatcher = onValue(userRef, async (profileSnap) => {
+    userProfile = profileSnap.val() || {};
+    const justApproved = !lastApprovedState && Boolean(userProfile.approved);
+    lastApprovedState = Boolean(userProfile.approved);
 
-    if (!teacherProfile.approved) {
-      statusBanner.textContent = "Waiting for admin approval from antonkrupinski0@gmail.com.";
+    if (!userProfile.approved) {
+      topbarRole.textContent = "Role: Pending Approval";
+      statusBanner.textContent = "Waiting for district assignment and approval.";
       setupModal.classList.add("hidden");
+      setRoleUI("pending");
       return;
     }
 
-    statusBanner.textContent = "Approved.";
-    if (!teacherProfile.classId) {
-      setupModal.classList.remove("hidden");
-    } else {
+    if (userProfile.role === "admin") {
+      topbarRole.textContent = `Role: District Admin (${userProfile.districtName || "No district"})`;
+      statusBanner.textContent = "You can manage teachers/admins and classrooms in your district.";
       setupModal.classList.add("hidden");
-      classRefPath = `classrooms/${teacherProfile.classId}`;
-      watchClassroom();
+      setRoleUI("admin");
+      await mountAdminPanel(userProfile);
+      return;
     }
+
+    topbarRole.textContent = `Role: Teacher (${userProfile.districtName || "No district"})`;
+    statusBanner.textContent = "Approved.";
+    setRoleUI("teacher");
+    cleanupAdminWatchers();
+
+    if (!userProfile.classId) {
+      if (justApproved) {
+        statusBanner.textContent = "Approved. Set up your classroom to continue.";
+      }
+      setupModal.classList.remove("hidden");
+      activateTab("screens");
+      if (stopClassroomWatcher) {
+        stopClassroomWatcher();
+        stopClassroomWatcher = null;
+      }
+      return;
+    }
+
+    setupModal.classList.add("hidden");
+    classRefPath = `classrooms/${userProfile.classId}`;
+    watchClassroom();
   });
 }
 
-async function mountAdminPanel() {
-  onValue(ref(db, "pendingTeachers"), (snapshot) => {
-    pendingTeachers.innerHTML = "";
-    const data = snapshot.val() || {};
-    const values = Object.values(data);
+function setRoleUI(role) {
+  const teacherHidden = role !== "teacher";
+  screensTabBtn.classList.toggle("hidden", teacherHidden);
+  studentsTabBtn.classList.toggle("hidden", teacherHidden);
+  settingsTabBtn.classList.toggle("hidden", teacherHidden);
+  adminTabBtn.classList.toggle("hidden", role !== "admin");
 
-    if (!values.length) {
-      pendingTeachers.innerHTML = "<p>No pending teachers.</p>";
-      return;
+  if (role === "teacher") {
+    if (document.querySelector(".tab-btn.active")?.dataset.tab === "admin") {
+      activateTab("screens");
+    }
+    if (!document.querySelector(".tab-btn.active") || document.querySelector(".tab-btn.active").classList.contains("hidden")) {
+      activateTab("screens");
+    }
+  } else if (role === "admin") {
+    activateTab("admin");
+  } else {
+    document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
+    statusBanner.textContent = "Waiting for approval.";
+  }
+}
+
+function activateTab(tabName) {
+  document.querySelectorAll(".tab-btn").forEach((btn) => btn.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
+
+  const targetBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+  const targetTab = document.getElementById(`${tabName}-tab`);
+
+  if (targetBtn && !targetBtn.classList.contains("hidden")) targetBtn.classList.add("active");
+  if (targetTab) targetTab.classList.add("active");
+}
+
+async function mountAdminPanel(profile) {
+  adminContext = {
+    role: profile.role,
+    districtId: profile.role === "super_admin" ? null : profile.districtId || null,
+    districtName: profile.role === "super_admin" ? "All districts" : profile.districtName || "Unknown district"
+  };
+
+  districtControls.classList.toggle("hidden", adminContext.role !== "super_admin");
+  districtScopeText.textContent = adminContext.role === "super_admin"
+    ? "Scope: all districts"
+    : `Scope: ${adminContext.districtName}`;
+
+  setupModal.classList.add("hidden");
+  classRefPath = "";
+  if (stopClassroomWatcher) {
+    stopClassroomWatcher();
+    stopClassroomWatcher = null;
+  }
+
+  cleanupAdminWatchers();
+
+  stopDistrictsWatcher = onValue(ref(db, "districts"), (snapshot) => {
+    districtsCache = snapshot.val() || {};
+    renderPendingApprovals();
+  });
+
+  stopPendingWatcher = onValue(ref(db, "pendingTeachers"), (snapshot) => {
+    pendingCache = snapshot.val() || {};
+    renderPendingApprovals();
+  });
+
+  stopAdminClassroomsWatcher = onValue(ref(db, "classrooms"), (snapshot) => {
+    classroomsCache = snapshot.val() || {};
+    renderDistrictClassrooms();
+  });
+}
+
+function renderPendingApprovals() {
+  pendingTeachers.innerHTML = "";
+  if (!adminContext) return;
+
+  const pendingList = Object.values(pendingCache || {});
+  if (!pendingList.length) {
+    pendingTeachers.innerHTML = "<p>No pending users.</p>";
+    return;
+  }
+
+  if (!Object.keys(districtsCache).length && adminContext.role === "super_admin") {
+    pendingTeachers.innerHTML = "<p>Create at least one district before approving users.</p>";
+    return;
+  }
+
+  pendingList.forEach((pendingUser) => {
+    const row = document.createElement("div");
+    row.className = "student-row";
+
+    const left = document.createElement("div");
+    left.innerHTML = `<strong>${pendingUser.displayName || "Unknown"}</strong><br>${pendingUser.email}`;
+
+    const controls = document.createElement("div");
+    controls.className = "approval-controls";
+
+    const districtSelect = document.createElement("select");
+    districtSelect.className = "approve-select";
+
+    if (adminContext.role === "super_admin") {
+      districtSelect.innerHTML = '<option value="">Select district</option>';
+      Object.entries(districtsCache).forEach(([id, district]) => {
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = district.name;
+        districtSelect.appendChild(option);
+      });
+    } else {
+      const option = document.createElement("option");
+      option.value = adminContext.districtId || "";
+      option.textContent = adminContext.districtName;
+      districtSelect.appendChild(option);
+      districtSelect.disabled = true;
     }
 
-    values.forEach((teacher) => {
-      const row = document.createElement("div");
-      row.className = "student-row";
-      row.innerHTML = `<div><strong>${teacher.displayName || "Unknown"}</strong><br>${teacher.email}</div>`;
+    const roleSelect = document.createElement("select");
+    roleSelect.className = "approve-select";
+    roleSelect.innerHTML = `
+      <option value="teacher">Teacher</option>
+      <option value="admin">Admin</option>
+    `;
 
-      const approveBtn = document.createElement("button");
-      approveBtn.className = "btn primary";
-      approveBtn.textContent = "Approve";
-      approveBtn.addEventListener("click", async () => {
-        await update(ref(db, `users/${teacher.uid}`), {
-          approved: true,
-          role: "teacher",
-          updatedAt: Date.now()
-        });
-        await remove(ref(db, `pendingTeachers/${teacher.uid}`));
+    const approveBtn = document.createElement("button");
+    approveBtn.className = "btn primary";
+    approveBtn.textContent = "Approve";
+    approveBtn.addEventListener("click", async () => {
+      const districtId = districtSelect.value;
+      if (!districtId) {
+        statusBanner.textContent = "Select a district before approving.";
+        return;
+      }
+
+      const districtName = districtsCache[districtId]?.name || adminContext.districtName || "District";
+      const chosenRole = roleSelect.value;
+
+      await update(ref(db, `users/${pendingUser.uid}`), {
+        approved: true,
+        role: chosenRole,
+        districtId,
+        districtName,
+        updatedAt: Date.now()
       });
 
-      row.appendChild(approveBtn);
-      pendingTeachers.appendChild(row);
+      await remove(ref(db, `pendingTeachers/${pendingUser.uid}`));
+      statusBanner.textContent = `Approved ${pendingUser.email} as ${chosenRole} in ${districtName}.`;
     });
+
+    controls.appendChild(districtSelect);
+    controls.appendChild(roleSelect);
+    controls.appendChild(approveBtn);
+
+    row.appendChild(left);
+    row.appendChild(controls);
+    pendingTeachers.appendChild(row);
   });
+}
+
+function renderDistrictClassrooms() {
+  districtClassrooms.innerHTML = "";
+  if (!adminContext) return;
+
+  const classrooms = Object.values(classroomsCache || {}).filter((room) => {
+    if (adminContext.role === "super_admin") return true;
+    return room.districtId && room.districtId === adminContext.districtId;
+  });
+
+  if (!classrooms.length) {
+    districtClassrooms.innerHTML = "<p>No classrooms found for this scope.</p>";
+    return;
+  }
+
+  classrooms
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    .forEach((room) => {
+      const row = document.createElement("div");
+      row.className = "student-row";
+      row.innerHTML = `
+        <div>
+          <strong>${room.teacherName || "Unknown Teacher"}</strong><br>
+          ${room.classType || "Class"} · Code: ${room.classCode || "N/A"}<br>
+          <small>${room.districtName || "No district"}</small>
+        </div>
+      `;
+      districtClassrooms.appendChild(row);
+    });
+}
+
+async function createDistrict() {
+  if (!adminContext || adminContext.role !== "super_admin") return;
+
+  const name = districtNameInput.value.trim();
+  if (!name) {
+    statusBanner.textContent = "Enter a district name.";
+    return;
+  }
+
+  const districtId = push(ref(db, "districts")).key;
+  await set(ref(db, `districts/${districtId}`), {
+    districtId,
+    name,
+    createdBy: currentUser.uid,
+    createdAt: Date.now()
+  });
+
+  districtNameInput.value = "";
+  statusBanner.textContent = `District created: ${name}`;
 }
 
 async function createClassroomForTeacher() {
+  if (!userProfile || userProfile.role !== "teacher") return;
+
   const teacherName = teacherNameInput.value.trim();
   const classType = classTypeInput.value;
 
@@ -249,6 +470,8 @@ async function createClassroomForTeacher() {
     teacherId: currentUser.uid,
     teacherName,
     classType,
+    districtId: userProfile.districtId || null,
+    districtName: userProfile.districtName || "",
     createdAt: Date.now(),
     settings: {
       blockedDomains: [],
@@ -262,6 +485,8 @@ async function createClassroomForTeacher() {
     classId,
     approved: true,
     role: "teacher",
+    districtId: userProfile.districtId || null,
+    districtName: userProfile.districtName || "",
     updatedAt: Date.now()
   });
 
@@ -339,20 +564,6 @@ function renderClassroomViews() {
   });
 }
 
-async function copyClassCode() {
-  const code = classCodeDisplay.textContent.trim();
-  if (!code || code === "------") {
-    statusBanner.textContent = "No class code yet. Create your classroom first.";
-    return;
-  }
-  try {
-    await navigator.clipboard.writeText(code);
-    statusBanner.textContent = `Class code copied: ${code}`;
-  } catch {
-    statusBanner.textContent = `Copy failed. Class code: ${code}`;
-  }
-}
-
 function openScreenModal(studentId, student) {
   selectedStudentId = studentId;
   screenModalTitle.textContent = student.displayName || "Student screen";
@@ -391,6 +602,47 @@ async function saveClassroomSettings() {
   });
 
   statusBanner.textContent = "Settings saved.";
+}
+
+async function copyClassCode() {
+  const code = classCodeDisplay.textContent.trim();
+  if (!code || code === "------") {
+    statusBanner.textContent = "No class code yet. Create your classroom first.";
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(code);
+    statusBanner.textContent = `Class code copied: ${code}`;
+  } catch {
+    statusBanner.textContent = `Copy failed. Class code: ${code}`;
+  }
+}
+
+function cleanupAllWatchers() {
+  if (stopUserWatcher) {
+    stopUserWatcher();
+    stopUserWatcher = null;
+  }
+  if (stopClassroomWatcher) {
+    stopClassroomWatcher();
+    stopClassroomWatcher = null;
+  }
+  cleanupAdminWatchers();
+}
+
+function cleanupAdminWatchers() {
+  if (stopPendingWatcher) {
+    stopPendingWatcher();
+    stopPendingWatcher = null;
+  }
+  if (stopDistrictsWatcher) {
+    stopDistrictsWatcher();
+    stopDistrictsWatcher = null;
+  }
+  if (stopAdminClassroomsWatcher) {
+    stopAdminClassroomsWatcher();
+    stopAdminClassroomsWatcher = null;
+  }
 }
 
 function generateClassCode() {

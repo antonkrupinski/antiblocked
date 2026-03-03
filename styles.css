@@ -363,6 +363,28 @@ p {
   padding: 10px 2px;
 }
 
+.admin-controls {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 14px;
+}
+
+.admin-controls input {
+  margin-bottom: 0;
+}
+
+.approval-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.approve-select {
+  width: 180px;
+  margin: 0;
+}
+
 textarea,
 input,
 select {
@@ -505,5 +527,15 @@ select:focus {
 
   .command-bar {
     flex-direction: column;
+  }
+
+  .admin-controls,
+  .approval-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .approve-select {
+    width: 100%;
   }
 }
