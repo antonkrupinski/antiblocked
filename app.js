@@ -43,12 +43,16 @@ const blockedDomainsInput = document.getElementById("blocked-domains");
 const blockedCategoriesSelect = document.getElementById("blocked-categories");
 const saveSettingsBtn = document.getElementById("save-settings-btn");
 const pendingTeachers = document.getElementById("pending-teachers");
+const districtList = document.getElementById("district-list");
 const districtClassrooms = document.getElementById("district-classrooms");
 const adminTabBtn = document.getElementById("admin-tab-btn");
 const districtScopeText = document.getElementById("district-scope");
 const districtControls = document.getElementById("district-controls");
 const districtNameInput = document.getElementById("district-name-input");
 const createDistrictBtn = document.getElementById("create-district-btn");
+const managedClassroomBar = document.getElementById("managed-classroom-bar");
+const managedClassroomLabel = document.getElementById("managed-classroom-label");
+const closeManagedClassroomBtn = document.getElementById("close-managed-classroom-btn");
 const setupModal = document.getElementById("setup-modal");
 const teacherNameInput = document.getElementById("teacher-name");
 const classTypeInput = document.getElementById("class-type");
@@ -75,6 +79,7 @@ let adminContext = null;
 let districtsCache = {};
 let pendingCache = {};
 let classroomsCache = {};
+let managedClassroomId = null;
 
 let stopUserWatcher = null;
 let stopClassroomWatcher = null;
@@ -101,6 +106,7 @@ saveSettingsBtn.addEventListener("click", saveClassroomSettings);
 refreshScreensBtn.addEventListener("click", renderClassroomViews);
 copyClassCodeBtn.addEventListener("click", copyClassCode);
 createDistrictBtn.addEventListener("click", createDistrict);
+closeManagedClassroomBtn.addEventListener("click", closeManagedClassroom);
 closeScreenModal.addEventListener("click", () => screenModal.classList.add("hidden"));
 lockUrlBtn.addEventListener("click", () => pushControlCommand("LOCK_URL"));
 unlockUrlBtn.addEventListener("click", () => pushControlCommand("UNLOCK_URL"));
@@ -112,6 +118,7 @@ onAuthStateChanged(auth, async (user) => {
   classroomData = null;
   userProfile = null;
   adminContext = null;
+  managedClassroomId = null;
   lastApprovedState = false;
 
   if (!user) {
@@ -212,7 +219,7 @@ async function mountUserFlow(user) {
 
     if (userProfile.role === "admin") {
       topbarRole.textContent = `Role: District Admin (${userProfile.districtName || "No district"})`;
-      statusBanner.textContent = "You can manage teachers/admins and classrooms in your district.";
+      statusBanner.textContent = "Open a district classroom to manage Screens, Students, and Settings.";
       setupModal.classList.add("hidden");
       setRoleUI("admin");
       await mountAdminPanel(userProfile);
@@ -244,13 +251,15 @@ async function mountUserFlow(user) {
 }
 
 function setRoleUI(role) {
-  const teacherHidden = role !== "teacher";
-  screensTabBtn.classList.toggle("hidden", teacherHidden);
-  studentsTabBtn.classList.toggle("hidden", teacherHidden);
-  settingsTabBtn.classList.toggle("hidden", teacherHidden);
-  adminTabBtn.classList.toggle("hidden", role !== "admin");
+  const showTeacherTabs = role === "teacher" || role === "admin_manage";
+  const showAdminTab = role === "admin" || role === "admin_manage";
 
-  if (role === "teacher") {
+  screensTabBtn.classList.toggle("hidden", !showTeacherTabs);
+  studentsTabBtn.classList.toggle("hidden", !showTeacherTabs);
+  settingsTabBtn.classList.toggle("hidden", !showTeacherTabs);
+  adminTabBtn.classList.toggle("hidden", !showAdminTab);
+
+  if (role === "teacher" || role === "admin_manage") {
     if (document.querySelector(".tab-btn.active")?.dataset.tab === "admin") {
       activateTab("screens");
     }
@@ -280,26 +289,24 @@ async function mountAdminPanel(profile) {
   adminContext = {
     role: profile.role,
     districtId: profile.role === "super_admin" ? null : profile.districtId || null,
-    districtName: profile.role === "super_admin" ? "All districts" : profile.districtName || "Unknown district"
+    districtName: profile.role === "super_admin" ? "All districts" : profile.districtName || "Unknown district",
+    activeDistrictId: profile.role === "super_admin" ? null : profile.districtId || null
   };
 
   districtControls.classList.toggle("hidden", adminContext.role !== "super_admin");
-  districtScopeText.textContent = adminContext.role === "super_admin"
-    ? "Scope: all districts"
-    : `Scope: ${adminContext.districtName}`;
-
-  setupModal.classList.add("hidden");
-  classRefPath = "";
-  if (stopClassroomWatcher) {
-    stopClassroomWatcher();
-    stopClassroomWatcher = null;
-  }
+  managedClassroomBar.classList.toggle("hidden", !managedClassroomId);
 
   cleanupAdminWatchers();
 
   stopDistrictsWatcher = onValue(ref(db, "districts"), (snapshot) => {
     districtsCache = snapshot.val() || {};
+    if (adminContext.role === "super_admin" && !adminContext.activeDistrictId) {
+      const firstDistrictId = Object.keys(districtsCache)[0] || null;
+      if (firstDistrictId) adminContext.activeDistrictId = firstDistrictId;
+    }
+    renderDistrictList();
     renderPendingApprovals();
+    renderDistrictClassrooms();
   });
 
   stopPendingWatcher = onValue(ref(db, "pendingTeachers"), (snapshot) => {
@@ -311,6 +318,16 @@ async function mountAdminPanel(profile) {
     classroomsCache = snapshot.val() || {};
     renderDistrictClassrooms();
   });
+
+  setupModal.classList.add("hidden");
+  if (!managedClassroomId) {
+    classRefPath = "";
+    classroomData = null;
+    if (stopClassroomWatcher) {
+      stopClassroomWatcher();
+      stopClassroomWatcher = null;
+    }
+  }
 }
 
 function renderPendingApprovals() {
@@ -349,6 +366,9 @@ function renderPendingApprovals() {
         option.textContent = district.name;
         districtSelect.appendChild(option);
       });
+      if (adminContext.activeDistrictId) {
+        districtSelect.value = adminContext.activeDistrictId;
+      }
     } else {
       const option = document.createElement("option");
       option.value = adminContext.districtId || "";
@@ -399,13 +419,71 @@ function renderPendingApprovals() {
   });
 }
 
+function renderDistrictList() {
+  districtList.innerHTML = "";
+  if (!adminContext) return;
+
+  const entries = Object.entries(districtsCache || {});
+  if (adminContext.role !== "super_admin" && adminContext.districtId && !districtsCache[adminContext.districtId]) {
+    entries.push([adminContext.districtId, { name: adminContext.districtName }]);
+  }
+  if (!entries.length) {
+    districtList.innerHTML = "<p>No districts created yet.</p>";
+    districtScopeText.textContent = "Scope: no district selected";
+    return;
+  }
+
+  entries
+    .sort((a, b) => (a[1]?.name || "").localeCompare(b[1]?.name || ""))
+    .forEach(([districtId, district]) => {
+      if (adminContext.role !== "super_admin" && districtId !== adminContext.districtId) return;
+
+      const row = document.createElement("div");
+      row.className = "student-row";
+      row.innerHTML = `<div><strong>${district.name}</strong><br><small>ID: ${districtId}</small></div>`;
+
+      const openBtn = document.createElement("button");
+      openBtn.className = "btn";
+      openBtn.textContent = adminContext.activeDistrictId === districtId ? "Opened" : "Open district";
+      openBtn.disabled = adminContext.activeDistrictId === districtId;
+      openBtn.addEventListener("click", () => {
+        adminContext.activeDistrictId = districtId;
+        managedClassroomId = null;
+        classRefPath = "";
+        classroomData = null;
+        managedClassroomBar.classList.add("hidden");
+        if (stopClassroomWatcher) {
+          stopClassroomWatcher();
+          stopClassroomWatcher = null;
+        }
+        setRoleUI("admin");
+        renderDistrictList();
+        renderDistrictClassrooms();
+        renderPendingApprovals();
+      });
+
+      row.appendChild(openBtn);
+      districtList.appendChild(row);
+    });
+
+  const scopeDistrict = adminContext.activeDistrictId ? districtsCache[adminContext.activeDistrictId]?.name : null;
+  districtScopeText.textContent = scopeDistrict
+    ? `Scope: ${scopeDistrict}`
+    : "Scope: select a district";
+}
+
 function renderDistrictClassrooms() {
   districtClassrooms.innerHTML = "";
   if (!adminContext) return;
 
+  const scopeDistrictId = adminContext.role === "super_admin" ? adminContext.activeDistrictId : adminContext.districtId;
+  if (!scopeDistrictId) {
+    districtClassrooms.innerHTML = "<p>Select a district to manage classrooms.</p>";
+    return;
+  }
+
   const classrooms = Object.values(classroomsCache || {}).filter((room) => {
-    if (adminContext.role === "super_admin") return true;
-    return room.districtId && room.districtId === adminContext.districtId;
+    return room.districtId && room.districtId === scopeDistrictId;
   });
 
   if (!classrooms.length) {
@@ -418,13 +496,18 @@ function renderDistrictClassrooms() {
     .forEach((room) => {
       const row = document.createElement("div");
       row.className = "student-row";
-      row.innerHTML = `
-        <div>
-          <strong>${room.teacherName || "Unknown Teacher"}</strong><br>
-          ${room.classType || "Class"} · Code: ${room.classCode || "N/A"}<br>
-          <small>${room.districtName || "No district"}</small>
-        </div>
+      const left = document.createElement("div");
+      left.innerHTML = `
+        <strong>${room.teacherName || "Unknown Teacher"}</strong><br>
+        ${room.classType || "Class"} · Code: ${room.classCode || "N/A"}<br>
+        <small>${room.districtName || "No district"}</small>
       `;
+      const openBtn = document.createElement("button");
+      openBtn.className = "btn primary";
+      openBtn.textContent = "Open classroom";
+      openBtn.addEventListener("click", () => openManagedClassroom(room));
+      row.appendChild(left);
+      row.appendChild(openBtn);
       districtClassrooms.appendChild(row);
     });
 }
@@ -446,8 +529,38 @@ async function createDistrict() {
     createdAt: Date.now()
   });
 
+  adminContext.activeDistrictId = districtId;
   districtNameInput.value = "";
   statusBanner.textContent = `District created: ${name}`;
+}
+
+function openManagedClassroom(room) {
+  if (!room?.classId) return;
+  managedClassroomId = room.classId;
+  classRefPath = `classrooms/${room.classId}`;
+  managedClassroomLabel.textContent = `Managing ${room.teacherName || "Teacher"} · ${room.classCode || "N/A"}`;
+  managedClassroomBar.classList.remove("hidden");
+  statusBanner.textContent = `Managing classroom ${room.classCode || "N/A"} in ${room.districtName || "district"}.`;
+  setRoleUI("admin_manage");
+  activateTab("screens");
+  watchClassroom();
+}
+
+function closeManagedClassroom() {
+  managedClassroomId = null;
+  classRefPath = "";
+  classroomData = null;
+  screensGrid.innerHTML = "";
+  studentsList.innerHTML = "";
+  classCodeDisplay.textContent = "------";
+  managedClassroomBar.classList.add("hidden");
+  if (stopClassroomWatcher) {
+    stopClassroomWatcher();
+    stopClassroomWatcher = null;
+  }
+  statusBanner.textContent = "Returned to district admin controls.";
+  setRoleUI("admin");
+  activateTab("admin");
 }
 
 async function createClassroomForTeacher() {
