@@ -87,6 +87,7 @@ let stopPendingWatcher = null;
 let stopDistrictsWatcher = null;
 let stopAdminClassroomsWatcher = null;
 let lastApprovedState = false;
+let teacherHeartbeatTimer = null;
 
 const tabs = document.querySelectorAll(".tab-btn");
 
@@ -110,10 +111,14 @@ closeManagedClassroomBtn.addEventListener("click", closeManagedClassroom);
 closeScreenModal.addEventListener("click", () => screenModal.classList.add("hidden"));
 lockUrlBtn.addEventListener("click", () => pushControlCommand("LOCK_URL"));
 unlockUrlBtn.addEventListener("click", () => pushControlCommand("UNLOCK_URL"));
+window.addEventListener("beforeunload", () => {
+  stopTeacherHeartbeat();
+});
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   cleanupAllWatchers();
+  stopTeacherHeartbeat();
   classRefPath = "";
   classroomData = null;
   userProfile = null;
@@ -241,11 +246,13 @@ async function mountUserFlow(user) {
         stopClassroomWatcher();
         stopClassroomWatcher = null;
       }
+      stopTeacherHeartbeat();
       return;
     }
 
     setupModal.classList.add("hidden");
     classRefPath = `classrooms/${userProfile.classId}`;
+    startTeacherHeartbeat();
     watchClassroom();
   });
 }
@@ -327,6 +334,7 @@ async function mountAdminPanel(profile) {
       stopClassroomWatcher();
       stopClassroomWatcher = null;
     }
+    stopTeacherHeartbeat();
   }
 }
 
@@ -558,6 +566,7 @@ function closeManagedClassroom() {
     stopClassroomWatcher();
     stopClassroomWatcher = null;
   }
+  stopTeacherHeartbeat();
   statusBanner.textContent = "Returned to district admin controls.";
   setRoleUI("admin");
   activateTab("admin");
@@ -741,6 +750,7 @@ function cleanupAllWatchers() {
     stopClassroomWatcher = null;
   }
   cleanupAdminWatchers();
+  stopTeacherHeartbeat();
 }
 
 function cleanupAdminWatchers() {
@@ -755,6 +765,39 @@ function cleanupAdminWatchers() {
   if (stopAdminClassroomsWatcher) {
     stopAdminClassroomsWatcher();
     stopAdminClassroomsWatcher = null;
+  }
+}
+
+function startTeacherHeartbeat() {
+  if (!userProfile || userProfile.role !== "teacher" || !userProfile.classId) return;
+  stopTeacherHeartbeat();
+  setTeacherOnlineStatus(true);
+  teacherHeartbeatTimer = setInterval(() => {
+    setTeacherOnlineStatus(true);
+  }, 15000);
+}
+
+function stopTeacherHeartbeat() {
+  if (teacherHeartbeatTimer) {
+    clearInterval(teacherHeartbeatTimer);
+    teacherHeartbeatTimer = null;
+  }
+  if (userProfile?.role === "teacher" && userProfile?.classId) {
+    setTeacherOnlineStatus(false);
+  }
+}
+
+async function setTeacherOnlineStatus(online) {
+  if (!userProfile || userProfile.role !== "teacher" || !userProfile.classId) return;
+  try {
+    await update(ref(db, `classrooms/${userProfile.classId}/teacherStatus`), {
+      online,
+      lastSeen: Date.now(),
+      teacherName: userProfile.displayName || "",
+      classType: classroomData?.classType || null
+    });
+  } catch {
+    // No-op for heartbeat failures.
   }
 }
 
