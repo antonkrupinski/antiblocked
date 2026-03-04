@@ -62,7 +62,6 @@ const screenModal = document.getElementById("screen-modal");
 const screenModalImage = document.getElementById("screen-modal-image");
 const screenModalTitle = document.getElementById("screen-modal-title");
 const closeScreenModal = document.getElementById("close-screen-modal");
-const lockUrlInput = document.getElementById("lock-url-input");
 const lockUrlBtn = document.getElementById("lock-url-btn");
 const unlockUrlBtn = document.getElementById("unlock-url-btn");
 
@@ -678,6 +677,19 @@ function renderClassroomViews() {
     studentsList.appendChild(row);
   });
 
+  if (!screenModal.classList.contains("hidden") && selectedStudentId) {
+    const focusedStudent = students[selectedStudentId];
+    if (focusedStudent?.active) {
+      screenModalTitle.textContent = focusedStudent.displayName || "Student screen";
+      if (focusedStudent.lastScreenshot) {
+        screenModalImage.src = focusedStudent.lastScreenshot;
+      }
+    } else {
+      screenModal.classList.add("hidden");
+      selectedStudentId = "";
+    }
+  }
+
   const settings = classroomData.settings || {};
   blockedDomainsInput.value = (settings.blockedDomains || []).join(", ");
   const selectedCategories = new Set(settings.blockedCategories || []);
@@ -690,7 +702,6 @@ function openScreenModal(studentId, student) {
   selectedStudentId = studentId;
   screenModalTitle.textContent = student.displayName || "Student screen";
   screenModalImage.src = student.lastScreenshot || "";
-  lockUrlInput.value = student.lockUrl || "";
   screenModal.classList.remove("hidden");
 }
 
@@ -700,8 +711,7 @@ async function pushControlCommand(type) {
   const payload = {
     type,
     createdAt: Date.now(),
-    targetStudentId: selectedStudentId,
-    lockUrl: lockUrlInput.value.trim() || null
+    targetStudentId: selectedStudentId
   };
 
   await push(ref(db, `${classRefPath}/commands`), payload);
