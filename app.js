@@ -61,6 +61,7 @@ const refreshScreensBtn = document.getElementById("refresh-screens-btn");
 const screenModal = document.getElementById("screen-modal");
 const screenModalImage = document.getElementById("screen-modal-image");
 const screenModalTitle = document.getElementById("screen-modal-title");
+const screenModalTabs = document.getElementById("screen-modal-tabs");
 const closeScreenModal = document.getElementById("close-screen-modal");
 const lockUrlBtn = document.getElementById("lock-url-btn");
 const unlockUrlBtn = document.getElementById("unlock-url-btn");
@@ -649,11 +650,13 @@ function renderClassroomViews() {
 
     const screenCard = document.createElement("div");
     screenCard.className = "screen-card";
+    const activeTab = Array.isArray(student.openTabs) ? student.openTabs.find((tab) => tab?.active) : null;
     screenCard.innerHTML = `
       <img src="${student.lastScreenshot || ""}" alt="${student.displayName || "Student"}">
       <div class="screen-meta">
         <strong>${student.displayName || "Student"}</strong><br>
         <small>${student.email || "No email"}</small>
+        <div class="screen-tabs-preview">${activeTab?.title || student.currentUrl || "No active tab info yet"}</div>
       </div>
     `;
     screenCard.addEventListener("click", () => openScreenModal(id, student));
@@ -684,6 +687,7 @@ function renderClassroomViews() {
       if (focusedStudent.lastScreenshot) {
         screenModalImage.src = focusedStudent.lastScreenshot;
       }
+      renderStudentTabsPanel(focusedStudent);
     } else {
       screenModal.classList.add("hidden");
       selectedStudentId = "";
@@ -702,7 +706,25 @@ function openScreenModal(studentId, student) {
   selectedStudentId = studentId;
   screenModalTitle.textContent = student.displayName || "Student screen";
   screenModalImage.src = student.lastScreenshot || "";
+  renderStudentTabsPanel(student);
   screenModal.classList.remove("hidden");
+}
+
+function renderStudentTabsPanel(student) {
+  const tabs = Array.isArray(student.openTabs) ? student.openTabs : [];
+  if (!tabs.length) {
+    screenModalTabs.innerHTML = "<div class=\"tab-row\">No tab data yet.</div>";
+    return;
+  }
+
+  screenModalTabs.innerHTML = tabs
+    .map((tab) => {
+      const title = sanitizeText(tab.title || "Untitled");
+      const url = sanitizeText(tab.url || "");
+      const cls = tab.active ? "tab-row active-tab" : "tab-row";
+      return `<div class="${cls}"><strong>${title}</strong><br><small>${url}</small></div>`;
+    })
+    .join("");
 }
 
 async function pushControlCommand(type) {
@@ -833,4 +855,13 @@ function setAuthError(error) {
 
 function setAuthMessage(message) {
   if (authStatus) authStatus.textContent = message;
+}
+
+function sanitizeText(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#39;");
 }
