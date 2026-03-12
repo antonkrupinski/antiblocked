@@ -39,6 +39,7 @@ const classCodeDisplay = document.getElementById("class-code-display");
 const copyClassCodeBtn = document.getElementById("copy-class-code-btn");
 const screensGrid = document.getElementById("screens-grid");
 const studentsList = document.getElementById("students-list");
+const pendingStudentsList = document.getElementById("pending-students-list");
 const blockedDomainsInput = document.getElementById("blocked-domains");
 const blockedCategoriesSelect = document.getElementById("blocked-categories");
 const saveSettingsBtn = document.getElementById("save-settings-btn");
@@ -50,6 +51,10 @@ const districtScopeText = document.getElementById("district-scope");
 const districtControls = document.getElementById("district-controls");
 const districtNameInput = document.getElementById("district-name-input");
 const createDistrictBtn = document.getElementById("create-district-btn");
+const districtCodeBar = document.getElementById("district-code-bar");
+const districtCodeLabel = document.getElementById("district-code-label");
+const copyDistrictCodeBtn = document.getElementById("copy-district-code-btn");
+const regenerateDistrictCodeBtn = document.getElementById("regenerate-district-code-btn");
 const managedClassroomBar = document.getElementById("managed-classroom-bar");
 const managedClassroomLabel = document.getElementById("managed-classroom-label");
 const closeManagedClassroomBtn = document.getElementById("close-managed-classroom-btn");
@@ -80,12 +85,14 @@ let districtsCache = {};
 let pendingCache = {};
 let classroomsCache = {};
 let managedClassroomId = null;
+let pendingStudentsCache = {};
 
 let stopUserWatcher = null;
 let stopClassroomWatcher = null;
 let stopPendingWatcher = null;
 let stopDistrictsWatcher = null;
 let stopAdminClassroomsWatcher = null;
+let stopPendingStudentsWatcher = null;
 let lastApprovedState = false;
 let teacherHeartbeatTimer = null;
 
@@ -107,6 +114,8 @@ saveSettingsBtn.addEventListener("click", saveClassroomSettings);
 refreshScreensBtn.addEventListener("click", renderClassroomViews);
 copyClassCodeBtn.addEventListener("click", copyClassCode);
 createDistrictBtn.addEventListener("click", createDistrict);
+copyDistrictCodeBtn.addEventListener("click", copyDistrictCode);
+regenerateDistrictCodeBtn.addEventListener("click", regenerateDistrictCode);
 closeManagedClassroomBtn.addEventListener("click", closeManagedClassroom);
 closeScreenModal.addEventListener("click", () => screenModal.classList.add("hidden"));
 lockUrlBtn.addEventListener("click", () => pushControlCommand("LOCK_URL"));
@@ -235,6 +244,7 @@ async function mountUserFlow(user) {
     statusBanner.textContent = "Approved.";
     setRoleUI("teacher");
     cleanupAdminWatchers();
+    watchPendingStudents();
 
     if (!userProfile.classId) {
       if (justApproved) {
@@ -302,6 +312,7 @@ async function mountAdminPanel(profile) {
 
   districtControls.classList.toggle("hidden", adminContext.role !== "super_admin");
   managedClassroomBar.classList.toggle("hidden", !managedClassroomId);
+  districtCodeBar.classList.add("hidden");
 
   cleanupAdminWatchers();
 
@@ -314,6 +325,7 @@ async function mountAdminPanel(profile) {
     renderDistrictList();
     renderPendingApprovals();
     renderDistrictClassrooms();
+    renderDistrictCode();
   });
 
   stopPendingWatcher = onValue(ref(db, "pendingTeachers"), (snapshot) => {
@@ -460,6 +472,7 @@ function renderDistrictList() {
         classRefPath = "";
         classroomData = null;
         managedClassroomBar.classList.add("hidden");
+        districtCodeBar.classList.add("hidden");
         if (stopClassroomWatcher) {
           stopClassroomWatcher();
           stopClassroomWatcher = null;
@@ -468,6 +481,7 @@ function renderDistrictList() {
         renderDistrictList();
         renderDistrictClassrooms();
         renderPendingApprovals();
+        renderDistrictCode();
       });
 
       row.appendChild(openBtn);
@@ -478,6 +492,22 @@ function renderDistrictList() {
   districtScopeText.textContent = scopeDistrict
     ? `Scope: ${scopeDistrict}`
     : "Scope: select a district";
+}
+
+function renderDistrictCode() {
+  if (!adminContext) return;
+  const scopeDistrictId = adminContext.role === "super_admin" ? adminContext.activeDistrictId : adminContext.districtId;
+  if (!scopeDistrictId) {
+    districtCodeBar.classList.add("hidden");
+    return;
+  }
+  const district = districtsCache[scopeDistrictId];
+  if (!district) {
+    districtCodeBar.classList.add("hidden");
+    return;
+  }
+  districtCodeBar.classList.remove("hidden");
+  districtCodeLabel.textContent = `District join code: ${district.joinCode || "Not set"}`;
 }
 
 function renderDistrictClassrooms() {
@@ -533,6 +563,7 @@ async function createDistrict() {
   await set(ref(db, `districts/${districtId}`), {
     districtId,
     name,
+    joinCode: generateJoinCode(),
     createdBy: currentUser.uid,
     createdAt: Date.now()
   });
@@ -540,6 +571,34 @@ async function createDistrict() {
   adminContext.activeDistrictId = districtId;
   districtNameInput.value = "";
   statusBanner.textContent = `District created: ${name}`;
+}
+
+async function regenerateDistrictCode() {
+  if (!adminContext) return;
+  const scopeDistrictId = adminContext.role === "super_admin" ? adminContext.activeDistrictId : adminContext.districtId;
+  if (!scopeDistrictId) return;
+  const joinCode = generateJoinCode();
+  await update(ref(db, `districts/${scopeDistrictId}`), {
+    joinCode,
+    updatedAt: Date.now()
+  });
+  statusBanner.textContent = `New district code generated: ${joinCode}`;
+}
+
+async function copyDistrictCode() {
+  if (!adminContext) return;
+  const scopeDistrictId = adminContext.role === "super_admin" ? adminContext.activeDistrictId : adminContext.districtId;
+  const code = districtsCache[scopeDistrictId]?.joinCode;
+  if (!code) {
+    statusBanner.textContent = "No district code available.";
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(code);
+    statusBanner.textContent = `District code copied: ${code}`;
+  } catch {
+    statusBanner.textContent = `Copy failed. District code: ${code}`;
+  }
 }
 
 function openManagedClassroom(room) {
@@ -702,6 +761,66 @@ function renderClassroomViews() {
   });
 }
 
+function watchPendingStudents() {
+  if (!userProfile?.districtId) return;
+  if (stopPendingStudentsWatcher) {
+    stopPendingStudentsWatcher();
+    stopPendingStudentsWatcher = null;
+  }
+  stopPendingStudentsWatcher = onValue(ref(db, `districtPending/${userProfile.districtId}`), (snapshot) => {
+    pendingStudentsCache = snapshot.val() || {};
+    renderPendingStudents();
+  });
+}
+
+function renderPendingStudents() {
+  pendingStudentsList.innerHTML = "";
+  if (!userProfile?.districtId) {
+    pendingStudentsList.innerHTML = "<p>No district assigned.</p>";
+    return;
+  }
+
+  const entries = Object.entries(pendingStudentsCache || {}).filter(([, data]) => !data?.assignedClassId);
+  if (!entries.length) {
+    pendingStudentsList.innerHTML = "<p>No pending students.</p>";
+    return;
+  }
+
+  entries.forEach(([pendingId, pending]) => {
+    const row = document.createElement("div");
+    row.className = "student-row";
+    row.innerHTML = `<div><strong>${pending.displayName || "Student"}</strong><br>${pending.email || "No email"}</div>`;
+
+    const addBtn = document.createElement("button");
+    addBtn.className = "btn primary";
+    addBtn.textContent = "Add to class";
+    addBtn.addEventListener("click", async () => {
+      if (!classRefPath) {
+        statusBanner.textContent = "Create your class before adding students.";
+        return;
+      }
+      await update(ref(db, `${classRefPath}/students/${pendingId}`), {
+        active: true,
+        email: pending.email || "",
+        displayName: pending.displayName || "Student",
+        joinedAt: Date.now(),
+        lastSeen: Date.now(),
+        lockUrl: null
+      });
+      await update(ref(db, `districtPending/${userProfile.districtId}/${pendingId}`), {
+        assignedClassId: userProfile.classId,
+        assignedAt: Date.now(),
+        assignedTeacherId: currentUser.uid,
+        assignedTeacherName: userProfile.displayName || ""
+      });
+      statusBanner.textContent = `Added ${pending.displayName || "student"} to your class.`;
+    });
+
+    row.appendChild(addBtn);
+    pendingStudentsList.appendChild(row);
+  });
+}
+
 function openScreenModal(studentId, student) {
   selectedStudentId = studentId;
   screenModalTitle.textContent = student.displayName || "Student screen";
@@ -783,6 +902,10 @@ function cleanupAllWatchers() {
   }
   cleanupAdminWatchers();
   stopTeacherHeartbeat();
+  if (stopPendingStudentsWatcher) {
+    stopPendingStudentsWatcher();
+    stopPendingStudentsWatcher = null;
+  }
 }
 
 function cleanupAdminWatchers() {
@@ -837,6 +960,15 @@ function generateClassCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
   for (let i = 0; i < 6; i += 1) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
+function generateJoinCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 8; i += 1) {
     code += chars[Math.floor(Math.random() * chars.length)];
   }
   return code;
