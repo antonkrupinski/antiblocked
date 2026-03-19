@@ -146,17 +146,58 @@
     </div>
   </div>
 
+  <div id="class-picker-modal" class="modal hidden">
+    <div class="modal-content large">
+      <div class="row-between">
+        <h3>Select a Class</h3>
+        <button id="close-class-picker-btn" class="btn">Close</button>
+      </div>
+      <div id="class-picker-list" class="class-picker-grid"></div>
+      <button id="new-class-btn" class="class-plus-btn" aria-label="Create new class">+</button>
+    </div>
+  </div>
+
+  <div id="class-create-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Create Classroom</h3>
+      <label>Class name</label>
+      <input id="new-class-name" type="text" placeholder="Algebra 1 - Period 2">
+      <label>Subject</label>
+      <select id="new-class-type">
+        <option value="Math">Math</option>
+        <option value="Science">Science</option>
+        <option value="English">English</option>
+        <option value="History">History</option>
+        <option value="Other">Other</option>
+      </select>
+      <label>Pick students from district</label>
+      <div id="class-students-list" class="class-students-list"></div>
+      <div class="row-between">
+        <button id="cancel-class-create-btn" class="btn">Cancel</button>
+        <button id="create-class-btn" class="btn primary">Create class</button>
+      </div>
+    </div>
+  </div>
+
   <div id="screen-modal" class="modal hidden">
     <div class="modal-content large">
       <div class="row-between">
-        <h3 id="screen-modal-title">Student screen</h3>
+        <h3 id="screen-modal-title">Student view</h3>
         <button id="close-screen-modal" class="btn">Close</button>
       </div>
-      <img id="screen-modal-image" alt="Student screen">
-      <div id="screen-modal-tabs" class="tabs-panel"></div>
-      <div class="command-bar">
-        <button id="lock-url-btn" class="btn primary">Lock</button>
-        <button id="unlock-url-btn" class="btn">Unlock</button>
+      <div class="screen-modal-body">
+        <div class="screen-modal-left">
+          <img id="screen-modal-image" alt="Student screen">
+        </div>
+        <div class="screen-modal-right">
+          <div class="tabs-browser">
+            <div class="tabs-header">
+              <span>Tabs</span>
+              <span id="tabs-count"></span>
+            </div>
+            <div id="screen-modal-tabs" class="tabs-panel"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

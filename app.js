@@ -62,14 +62,23 @@ const setupModal = document.getElementById("setup-modal");
 const teacherNameInput = document.getElementById("teacher-name");
 const classTypeInput = document.getElementById("class-type");
 const completeSetupBtn = document.getElementById("complete-setup-btn");
+const classPickerModal = document.getElementById("class-picker-modal");
+const classPickerList = document.getElementById("class-picker-list");
+const newClassBtn = document.getElementById("new-class-btn");
+const closeClassPickerBtn = document.getElementById("close-class-picker-btn");
+const classCreateModal = document.getElementById("class-create-modal");
+const newClassNameInput = document.getElementById("new-class-name");
+const newClassTypeInput = document.getElementById("new-class-type");
+const classStudentsList = document.getElementById("class-students-list");
+const createClassBtn = document.getElementById("create-class-btn");
+const cancelClassCreateBtn = document.getElementById("cancel-class-create-btn");
 const refreshScreensBtn = document.getElementById("refresh-screens-btn");
 const screenModal = document.getElementById("screen-modal");
 const screenModalImage = document.getElementById("screen-modal-image");
 const screenModalTitle = document.getElementById("screen-modal-title");
 const screenModalTabs = document.getElementById("screen-modal-tabs");
+const tabsCount = document.getElementById("tabs-count");
 const closeScreenModal = document.getElementById("close-screen-modal");
-const lockUrlBtn = document.getElementById("lock-url-btn");
-const unlockUrlBtn = document.getElementById("unlock-url-btn");
 
 const screensTabBtn = document.querySelector('[data-tab="screens"]');
 const studentsTabBtn = document.querySelector('[data-tab="students"]');
@@ -86,6 +95,7 @@ let pendingCache = {};
 let classroomsCache = {};
 let managedClassroomId = null;
 let pendingStudentsCache = {};
+let teacherClassesCache = {};
 
 let stopUserWatcher = null;
 let stopClassroomWatcher = null;
@@ -93,6 +103,7 @@ let stopPendingWatcher = null;
 let stopDistrictsWatcher = null;
 let stopAdminClassroomsWatcher = null;
 let stopPendingStudentsWatcher = null;
+let stopTeacherClassesWatcher = null;
 let lastApprovedState = false;
 let teacherHeartbeatTimer = null;
 
@@ -118,11 +129,20 @@ copyDistrictCodeBtn.addEventListener("click", copyDistrictCode);
 regenerateDistrictCodeBtn.addEventListener("click", regenerateDistrictCode);
 closeManagedClassroomBtn.addEventListener("click", closeManagedClassroom);
 closeScreenModal.addEventListener("click", () => screenModal.classList.add("hidden"));
-lockUrlBtn.addEventListener("click", () => pushControlCommand("LOCK_URL"));
-unlockUrlBtn.addEventListener("click", () => pushControlCommand("UNLOCK_URL"));
 window.addEventListener("beforeunload", () => {
   stopTeacherHeartbeat();
 });
+newClassBtn.addEventListener("click", () => {
+  classCreateModal.classList.remove("hidden");
+  renderClassStudentsPicker();
+});
+closeClassPickerBtn.addEventListener("click", () => {
+  classPickerModal.classList.add("hidden");
+});
+cancelClassCreateBtn.addEventListener("click", () => {
+  classCreateModal.classList.add("hidden");
+});
+createClassBtn.addEventListener("click", createClassFromPicker);
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
@@ -245,24 +265,20 @@ async function mountUserFlow(user) {
     setRoleUI("teacher");
     cleanupAdminWatchers();
     watchPendingStudents();
+    watchTeacherClasses();
 
-    if (!userProfile.classId) {
+    const activeClassId = userProfile.activeClassId || userProfile.classId || null;
+    if (!activeClassId) {
       if (justApproved) {
-        statusBanner.textContent = "Approved. Set up your classroom to continue.";
+        statusBanner.textContent = "Approved. Select or create a classroom to continue.";
       }
-      setupModal.classList.remove("hidden");
-      activateTab("screens");
-      if (stopClassroomWatcher) {
-        stopClassroomWatcher();
-        stopClassroomWatcher = null;
-      }
+      showClassPicker();
       stopTeacherHeartbeat();
       return;
     }
 
-    setupModal.classList.add("hidden");
-    classRefPath = `classrooms/${userProfile.classId}`;
-    startTeacherHeartbeat();
+    classRefPath = `classrooms/${activeClassId}`;
+    startTeacherHeartbeat(activeClassId);
     watchClassroom();
   });
 }
@@ -632,48 +648,8 @@ function closeManagedClassroom() {
 }
 
 async function createClassroomForTeacher() {
-  if (!userProfile || userProfile.role !== "teacher") return;
-
-  const teacherName = teacherNameInput.value.trim();
-  const classType = classTypeInput.value;
-
-  if (!teacherName) {
-    statusBanner.textContent = "Enter your name first.";
-    return;
-  }
-
-  const classId = push(ref(db, "classrooms")).key;
-  const classCode = generateClassCode();
-
-  await set(ref(db, `classrooms/${classId}`), {
-    classId,
-    classCode,
-    teacherId: currentUser.uid,
-    teacherName,
-    classType,
-    districtId: userProfile.districtId || null,
-    districtName: userProfile.districtName || "",
-    createdAt: Date.now(),
-    settings: {
-      blockedDomains: [],
-      blockedCategories: []
-    },
-    commands: {}
-  });
-
-  await update(ref(db, `users/${currentUser.uid}`), {
-    displayName: teacherName,
-    classId,
-    approved: true,
-    role: "teacher",
-    districtId: userProfile.districtId || null,
-    districtName: userProfile.districtName || "",
-    updatedAt: Date.now()
-  });
-
-  setupModal.classList.add("hidden");
-  classRefPath = `classrooms/${classId}`;
-  watchClassroom();
+  // Deprecated by class picker flow; kept for legacy compatibility.
+  return;
 }
 
 function watchClassroom() {
@@ -773,6 +749,140 @@ function watchPendingStudents() {
   });
 }
 
+function watchTeacherClasses() {
+  if (!currentUser) return;
+  if (stopTeacherClassesWatcher) {
+    stopTeacherClassesWatcher();
+    stopTeacherClassesWatcher = null;
+  }
+  stopTeacherClassesWatcher = onValue(ref(db, "classrooms"), (snapshot) => {
+    const all = snapshot.val() || {};
+    teacherClassesCache = Object.values(all).filter((room) => room.teacherId === currentUser.uid);
+    renderClassPicker();
+  });
+}
+
+function showClassPicker() {
+  classPickerModal.classList.remove("hidden");
+  renderClassPicker();
+}
+
+function renderClassPicker() {
+  if (!classPickerList) return;
+  classPickerList.innerHTML = "";
+
+  if (!teacherClassesCache.length) {
+    classPickerList.innerHTML = "<div class=\"card\">No classes yet. Click + to create one.</div>";
+    return;
+  }
+
+  teacherClassesCache.forEach((room) => {
+    const card = document.createElement("div");
+    card.className = "class-card";
+    const studentCount = Object.values(room.students || {}).filter((s) => s?.active).length;
+    card.innerHTML = `
+      <strong>${room.className || room.classType || "Class"}</strong><br>
+      <small>${studentCount} students</small><br>
+      <small>${room.classType || ""}</small>
+    `;
+    card.addEventListener("click", () => selectClassroom(room.classId));
+    classPickerList.appendChild(card);
+  });
+}
+
+async function selectClassroom(classId) {
+  if (!currentUser || !classId) return;
+  await update(ref(db, `users/${currentUser.uid}`), {
+    activeClassId: classId,
+    updatedAt: Date.now()
+  });
+  classRefPath = `classrooms/${classId}`;
+  classPickerModal.classList.add("hidden");
+  startTeacherHeartbeat(classId);
+  watchClassroom();
+}
+
+function renderClassStudentsPicker() {
+  classStudentsList.innerHTML = "";
+  const entries = Object.entries(pendingStudentsCache || {}).filter(([, data]) => !data?.assignedClassId);
+  if (!entries.length) {
+    classStudentsList.innerHTML = "<div class=\"class-student-row\">No pending students.</div>";
+    return;
+  }
+
+  entries.forEach(([pendingId, pending]) => {
+    const row = document.createElement("label");
+    row.className = "class-student-row";
+    row.innerHTML = `
+      <span>${pending.displayName || "Student"} (${pending.email || "No email"})</span>
+      <input type="checkbox" value="${pendingId}">
+    `;
+    classStudentsList.appendChild(row);
+  });
+}
+
+async function createClassFromPicker() {
+  if (!userProfile || userProfile.role !== "teacher") return;
+  const className = newClassNameInput.value.trim();
+  const classType = newClassTypeInput.value || "Other";
+  if (!className) {
+    statusBanner.textContent = "Enter a class name.";
+    return;
+  }
+
+  const classId = push(ref(db, "classrooms")).key;
+  const classCode = generateClassCode();
+  const selectedIds = Array.from(classStudentsList.querySelectorAll("input[type=\"checkbox\"]:checked"))
+    .map((input) => input.value);
+
+  await set(ref(db, `classrooms/${classId}`), {
+    classId,
+    classCode,
+    className,
+    classType,
+    teacherId: currentUser.uid,
+    teacherName: userProfile.displayName || "",
+    districtId: userProfile.districtId || null,
+    districtName: userProfile.districtName || "",
+    createdAt: Date.now(),
+    settings: {
+      blockedDomains: [],
+      blockedCategories: []
+    },
+    commands: {}
+  });
+
+  for (const pendingId of selectedIds) {
+    const pending = pendingStudentsCache[pendingId] || {};
+    await update(ref(db, `classrooms/${classId}/students/${pendingId}`), {
+      active: true,
+      email: pending.email || "",
+      displayName: pending.displayName || "Student",
+      joinedAt: Date.now(),
+      lastSeen: Date.now(),
+      lockUrl: null
+    });
+    await update(ref(db, `districtPending/${userProfile.districtId}/${pendingId}`), {
+      assignedClassId: classId,
+      assignedAt: Date.now(),
+      assignedTeacherId: currentUser.uid,
+      assignedTeacherName: userProfile.displayName || ""
+    });
+  }
+
+  await update(ref(db, `users/${currentUser.uid}`), {
+    activeClassId: classId,
+    updatedAt: Date.now()
+  });
+
+  newClassNameInput.value = "";
+  classCreateModal.classList.add("hidden");
+  classPickerModal.classList.add("hidden");
+  classRefPath = `classrooms/${classId}`;
+  startTeacherHeartbeat(classId);
+  watchClassroom();
+}
+
 function renderPendingStudents() {
   pendingStudentsList.innerHTML = "";
   if (!userProfile?.districtId) {
@@ -831,28 +941,57 @@ function openScreenModal(studentId, student) {
 
 function renderStudentTabsPanel(student) {
   const tabs = Array.isArray(student.openTabs) ? student.openTabs : [];
+  tabsCount.textContent = tabs.length ? `${tabs.length} open` : "";
+  screenModalTabs.innerHTML = "";
   if (!tabs.length) {
     screenModalTabs.innerHTML = "<div class=\"tab-row\">No tab data yet.</div>";
     return;
   }
 
-  screenModalTabs.innerHTML = tabs
-    .map((tab) => {
-      const title = sanitizeText(tab.title || "Untitled");
-      const url = sanitizeText(tab.url || "");
-      const cls = tab.active ? "tab-row active-tab" : "tab-row";
-      return `<div class="${cls}"><strong>${title}</strong><br><small>${url}</small></div>`;
-    })
-    .join("");
+  tabs.forEach((tab) => {
+    const row = document.createElement("div");
+    row.className = tab.active ? "tab-row active-tab" : "tab-row";
+
+    const title = document.createElement("div");
+    title.className = "tab-title";
+    title.textContent = tab.title || "Untitled";
+
+    const url = document.createElement("div");
+    url.className = "tab-url";
+    url.textContent = tab.url || "";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "tab-close";
+    closeBtn.type = "button";
+    closeBtn.textContent = "X";
+    closeBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (typeof tab.id === "number") {
+        pushControlCommand("CLOSE_TAB", { tabId: tab.id });
+      }
+    });
+
+    row.addEventListener("click", () => {
+      if (typeof tab.id === "number") {
+        pushControlCommand("FOCUS_TAB", { tabId: tab.id });
+      }
+    });
+
+    row.appendChild(title);
+    row.appendChild(url);
+    row.appendChild(closeBtn);
+    screenModalTabs.appendChild(row);
+  });
 }
 
-async function pushControlCommand(type) {
+async function pushControlCommand(type, extra = {}) {
   if (!selectedStudentId || !classRefPath) return;
 
   const payload = {
     type,
     createdAt: Date.now(),
-    targetStudentId: selectedStudentId
+    targetStudentId: selectedStudentId,
+    ...extra
   };
 
   await push(ref(db, `${classRefPath}/commands`), payload);
@@ -906,6 +1045,10 @@ function cleanupAllWatchers() {
     stopPendingStudentsWatcher();
     stopPendingStudentsWatcher = null;
   }
+  if (stopTeacherClassesWatcher) {
+    stopTeacherClassesWatcher();
+    stopTeacherClassesWatcher = null;
+  }
 }
 
 function cleanupAdminWatchers() {
@@ -923,12 +1066,13 @@ function cleanupAdminWatchers() {
   }
 }
 
-function startTeacherHeartbeat() {
-  if (!userProfile || userProfile.role !== "teacher" || !userProfile.classId) return;
+function startTeacherHeartbeat(activeClassId) {
+  const classId = activeClassId || userProfile?.activeClassId || userProfile?.classId;
+  if (!userProfile || userProfile.role !== "teacher" || !classId) return;
   stopTeacherHeartbeat();
-  setTeacherOnlineStatus(true);
+  setTeacherOnlineStatus(true, classId);
   teacherHeartbeatTimer = setInterval(() => {
-    setTeacherOnlineStatus(true);
+    setTeacherOnlineStatus(true, classId);
   }, 15000);
 }
 
@@ -937,15 +1081,16 @@ function stopTeacherHeartbeat() {
     clearInterval(teacherHeartbeatTimer);
     teacherHeartbeatTimer = null;
   }
-  if (userProfile?.role === "teacher" && userProfile?.classId) {
-    setTeacherOnlineStatus(false);
+  const classId = userProfile?.activeClassId || userProfile?.classId;
+  if (userProfile?.role === "teacher" && classId) {
+    setTeacherOnlineStatus(false, classId);
   }
 }
 
-async function setTeacherOnlineStatus(online) {
-  if (!userProfile || userProfile.role !== "teacher" || !userProfile.classId) return;
+async function setTeacherOnlineStatus(online, classId) {
+  if (!userProfile || userProfile.role !== "teacher" || !classId) return;
   try {
-    await update(ref(db, `classrooms/${userProfile.classId}/teacherStatus`), {
+    await update(ref(db, `classrooms/${classId}/teacherStatus`), {
       online,
       lastSeen: Date.now(),
       teacherName: userProfile.displayName || "",
