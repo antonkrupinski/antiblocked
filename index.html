@@ -51,8 +51,8 @@
             <div>
               <h3>Screens</h3>
               <div class="class-code-wrap">
-                <span class="class-code-label">Class code</span>
-                <span id="class-code-display" class="class-code-pill">------</span>
+                <span class="class-code-label">District code</span>
+                <span id="class-code-display" class="class-code-pill">--------</span>
                 <button id="copy-class-code-btn" class="btn">Copy</button>
               </div>
             </div>
@@ -63,12 +63,11 @@
 
         <section id="students-tab" class="tab">
           <div class="card">
-            <h3>Students</h3>
+            <div class="row-between">
+              <h3>Students</h3>
+              <button id="open-add-students-btn" class="class-plus-btn small" aria-label="Add students">+</button>
+            </div>
             <div id="students-list"></div>
-          </div>
-          <div class="card">
-            <h3>Pending Students</h3>
-            <div id="pending-students-list"></div>
           </div>
         </section>
 
@@ -175,6 +174,17 @@
       <div class="row-between">
         <button id="cancel-class-create-btn" class="btn">Cancel</button>
         <button id="create-class-btn" class="btn primary">Create class</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="add-students-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Add District Students</h3>
+      <div id="add-students-list" class="class-students-list"></div>
+      <div class="row-between">
+        <button id="cancel-add-students-btn" class="btn">Cancel</button>
+        <button id="confirm-add-students-btn" class="btn primary">Add students</button>
       </div>
     </div>
   </div>

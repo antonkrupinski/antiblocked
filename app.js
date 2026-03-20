@@ -39,7 +39,6 @@ const classCodeDisplay = document.getElementById("class-code-display");
 const copyClassCodeBtn = document.getElementById("copy-class-code-btn");
 const screensGrid = document.getElementById("screens-grid");
 const studentsList = document.getElementById("students-list");
-const pendingStudentsList = document.getElementById("pending-students-list");
 const blockedDomainsInput = document.getElementById("blocked-domains");
 const blockedCategoriesSelect = document.getElementById("blocked-categories");
 const saveSettingsBtn = document.getElementById("save-settings-btn");
@@ -72,6 +71,11 @@ const newClassTypeInput = document.getElementById("new-class-type");
 const classStudentsList = document.getElementById("class-students-list");
 const createClassBtn = document.getElementById("create-class-btn");
 const cancelClassCreateBtn = document.getElementById("cancel-class-create-btn");
+const openAddStudentsBtn = document.getElementById("open-add-students-btn");
+const addStudentsModal = document.getElementById("add-students-modal");
+const addStudentsList = document.getElementById("add-students-list");
+const cancelAddStudentsBtn = document.getElementById("cancel-add-students-btn");
+const confirmAddStudentsBtn = document.getElementById("confirm-add-students-btn");
 const refreshScreensBtn = document.getElementById("refresh-screens-btn");
 const screenModal = document.getElementById("screen-modal");
 const screenModalImage = document.getElementById("screen-modal-image");
@@ -104,6 +108,7 @@ let stopDistrictsWatcher = null;
 let stopAdminClassroomsWatcher = null;
 let stopPendingStudentsWatcher = null;
 let stopTeacherClassesWatcher = null;
+let stopTeacherDistrictWatcher = null;
 let lastApprovedState = false;
 let teacherHeartbeatTimer = null;
 
@@ -143,6 +148,14 @@ cancelClassCreateBtn.addEventListener("click", () => {
   classCreateModal.classList.add("hidden");
 });
 createClassBtn.addEventListener("click", createClassFromPicker);
+openAddStudentsBtn.addEventListener("click", () => {
+  renderAddStudentsPicker();
+  addStudentsModal.classList.remove("hidden");
+});
+cancelAddStudentsBtn.addEventListener("click", () => {
+  addStudentsModal.classList.add("hidden");
+});
+confirmAddStudentsBtn.addEventListener("click", addSelectedStudentsToCurrentClass);
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
@@ -266,6 +279,7 @@ async function mountUserFlow(user) {
     cleanupAdminWatchers();
     watchPendingStudents();
     watchTeacherClasses();
+    watchTeacherDistrict();
 
     const activeClassId = userProfile.activeClassId || userProfile.classId || null;
     if (!activeClassId) {
@@ -667,8 +681,6 @@ function watchClassroom() {
 function renderClassroomViews() {
   if (!classroomData) return;
 
-  classCodeDisplay.textContent = classroomData.classCode || "------";
-
   const students = classroomData.students || {};
   const studentIds = Object.keys(students).filter((id) => students[id]?.active);
 
@@ -745,7 +757,18 @@ function watchPendingStudents() {
   }
   stopPendingStudentsWatcher = onValue(ref(db, `districtPending/${userProfile.districtId}`), (snapshot) => {
     pendingStudentsCache = snapshot.val() || {};
-    renderPendingStudents();
+  });
+}
+
+function watchTeacherDistrict() {
+  if (!userProfile?.districtId) return;
+  if (stopTeacherDistrictWatcher) {
+    stopTeacherDistrictWatcher();
+    stopTeacherDistrictWatcher = null;
+  }
+  stopTeacherDistrictWatcher = onValue(ref(db, `districts/${userProfile.districtId}`), (snapshot) => {
+    const district = snapshot.val();
+    classCodeDisplay.textContent = district?.joinCode || "--------";
   });
 }
 
@@ -883,54 +906,6 @@ async function createClassFromPicker() {
   watchClassroom();
 }
 
-function renderPendingStudents() {
-  pendingStudentsList.innerHTML = "";
-  if (!userProfile?.districtId) {
-    pendingStudentsList.innerHTML = "<p>No district assigned.</p>";
-    return;
-  }
-
-  const entries = Object.entries(pendingStudentsCache || {}).filter(([, data]) => !data?.assignedClassId);
-  if (!entries.length) {
-    pendingStudentsList.innerHTML = "<p>No pending students.</p>";
-    return;
-  }
-
-  entries.forEach(([pendingId, pending]) => {
-    const row = document.createElement("div");
-    row.className = "student-row";
-    row.innerHTML = `<div><strong>${pending.displayName || "Student"}</strong><br>${pending.email || "No email"}</div>`;
-
-    const addBtn = document.createElement("button");
-    addBtn.className = "btn primary";
-    addBtn.textContent = "Add to class";
-    addBtn.addEventListener("click", async () => {
-      if (!classRefPath) {
-        statusBanner.textContent = "Create your class before adding students.";
-        return;
-      }
-      await update(ref(db, `${classRefPath}/students/${pendingId}`), {
-        active: true,
-        email: pending.email || "",
-        displayName: pending.displayName || "Student",
-        joinedAt: Date.now(),
-        lastSeen: Date.now(),
-        lockUrl: null
-      });
-      await update(ref(db, `districtPending/${userProfile.districtId}/${pendingId}`), {
-        assignedClassId: userProfile.classId,
-        assignedAt: Date.now(),
-        assignedTeacherId: currentUser.uid,
-        assignedTeacherName: userProfile.displayName || ""
-      });
-      statusBanner.textContent = `Added ${pending.displayName || "student"} to your class.`;
-    });
-
-    row.appendChild(addBtn);
-    pendingStudentsList.appendChild(row);
-  });
-}
-
 function openScreenModal(studentId, student) {
   selectedStudentId = studentId;
   screenModalTitle.textContent = student.displayName || "Student screen";
@@ -1018,15 +993,15 @@ async function saveClassroomSettings() {
 
 async function copyClassCode() {
   const code = classCodeDisplay.textContent.trim();
-  if (!code || code === "------") {
-    statusBanner.textContent = "No class code yet. Create your classroom first.";
+  if (!code || code === "--------") {
+    statusBanner.textContent = "No district code available yet.";
     return;
   }
   try {
     await navigator.clipboard.writeText(code);
-    statusBanner.textContent = `Class code copied: ${code}`;
+    statusBanner.textContent = `District code copied: ${code}`;
   } catch {
-    statusBanner.textContent = `Copy failed. Class code: ${code}`;
+    statusBanner.textContent = `Copy failed. District code: ${code}`;
   }
 }
 
@@ -1048,6 +1023,10 @@ function cleanupAllWatchers() {
   if (stopTeacherClassesWatcher) {
     stopTeacherClassesWatcher();
     stopTeacherClassesWatcher = null;
+  }
+  if (stopTeacherDistrictWatcher) {
+    stopTeacherDistrictWatcher();
+    stopTeacherDistrictWatcher = null;
   }
 }
 
@@ -1141,4 +1120,57 @@ function sanitizeText(value) {
     .replaceAll(">", "&gt;")
     .replaceAll("\"", "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function renderAddStudentsPicker() {
+  addStudentsList.innerHTML = "";
+  const entries = Object.entries(pendingStudentsCache || {}).filter(([, data]) => !data?.assignedClassId);
+  if (!entries.length) {
+    addStudentsList.innerHTML = "<div class=\"class-student-row\">No district students waiting.</div>";
+    return;
+  }
+
+  entries.forEach(([pendingId, pending]) => {
+    const row = document.createElement("label");
+    row.className = "class-student-row";
+    row.innerHTML = `
+      <span>${pending.displayName || "Student"} (${pending.email || "No email"})</span>
+      <input type="checkbox" value="${pendingId}">
+    `;
+    addStudentsList.appendChild(row);
+  });
+}
+
+async function addSelectedStudentsToCurrentClass() {
+  if (!classRefPath || !userProfile?.districtId) {
+    statusBanner.textContent = "Select a class first.";
+    return;
+  }
+  const activeClassId = userProfile.activeClassId || userProfile.classId;
+  const selectedIds = Array.from(addStudentsList.querySelectorAll("input[type=\"checkbox\"]:checked")).map((input) => input.value);
+  if (!selectedIds.length) {
+    statusBanner.textContent = "Select at least one student.";
+    return;
+  }
+
+  for (const pendingId of selectedIds) {
+    const pending = pendingStudentsCache[pendingId] || {};
+    await update(ref(db, `${classRefPath}/students/${pendingId}`), {
+      active: true,
+      email: pending.email || "",
+      displayName: pending.displayName || "Student",
+      joinedAt: Date.now(),
+      lastSeen: Date.now(),
+      lockUrl: null
+    });
+    await update(ref(db, `districtPending/${userProfile.districtId}/${pendingId}`), {
+      assignedClassId: activeClassId,
+      assignedAt: Date.now(),
+      assignedTeacherId: currentUser.uid,
+      assignedTeacherName: userProfile.displayName || ""
+    });
+  }
+
+  addStudentsModal.classList.add("hidden");
+  statusBanner.textContent = `Added ${selectedIds.length} student${selectedIds.length === 1 ? "" : "s"} to this class.`;
 }

@@ -500,6 +500,14 @@ select:focus {
   place-items: center;
 }
 
+.class-plus-btn.small {
+  width: 52px;
+  height: 52px;
+  font-size: 32px;
+  margin-top: 0;
+  border-radius: 12px;
+}
+
 .class-students-list {
   border: 1px solid var(--line);
   border-radius: 10px;
