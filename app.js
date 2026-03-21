@@ -47,13 +47,20 @@ const districtList = document.getElementById("district-list");
 const districtClassrooms = document.getElementById("district-classrooms");
 const adminTabBtn = document.getElementById("admin-tab-btn");
 const districtScopeText = document.getElementById("district-scope");
-const districtControls = document.getElementById("district-controls");
+const openCreateDistrictBtn = document.getElementById("open-create-district-btn");
 const districtNameInput = document.getElementById("district-name-input");
+const districtJoinCodeInput = document.getElementById("district-join-code-input");
 const createDistrictBtn = document.getElementById("create-district-btn");
+const createDistrictModal = document.getElementById("create-district-modal");
+const cancelCreateDistrictBtn = document.getElementById("cancel-create-district-btn");
 const districtCodeBar = document.getElementById("district-code-bar");
 const districtCodeLabel = document.getElementById("district-code-label");
 const copyDistrictCodeBtn = document.getElementById("copy-district-code-btn");
 const regenerateDistrictCodeBtn = document.getElementById("regenerate-district-code-btn");
+const districtTeachersModal = document.getElementById("district-teachers-modal");
+const districtTeachersTitle = document.getElementById("district-teachers-title");
+const districtTeachersList = document.getElementById("district-teachers-list");
+const closeDistrictTeachersBtn = document.getElementById("close-district-teachers-btn");
 const managedClassroomBar = document.getElementById("managed-classroom-bar");
 const managedClassroomLabel = document.getElementById("managed-classroom-label");
 const closeManagedClassroomBtn = document.getElementById("close-managed-classroom-btn");
@@ -100,6 +107,7 @@ let classroomsCache = {};
 let managedClassroomId = null;
 let pendingStudentsCache = {};
 let teacherClassesCache = {};
+let usersCache = {};
 
 let stopUserWatcher = null;
 let stopClassroomWatcher = null;
@@ -109,6 +117,7 @@ let stopAdminClassroomsWatcher = null;
 let stopPendingStudentsWatcher = null;
 let stopTeacherClassesWatcher = null;
 let stopTeacherDistrictWatcher = null;
+let stopUsersWatcher = null;
 let lastApprovedState = false;
 let teacherHeartbeatTimer = null;
 
@@ -129,10 +138,19 @@ completeSetupBtn.addEventListener("click", createClassroomForTeacher);
 saveSettingsBtn.addEventListener("click", saveClassroomSettings);
 refreshScreensBtn.addEventListener("click", renderClassroomViews);
 copyClassCodeBtn.addEventListener("click", copyClassCode);
+openCreateDistrictBtn.addEventListener("click", () => {
+  createDistrictModal.classList.remove("hidden");
+});
+cancelCreateDistrictBtn.addEventListener("click", () => {
+  createDistrictModal.classList.add("hidden");
+});
 createDistrictBtn.addEventListener("click", createDistrict);
 copyDistrictCodeBtn.addEventListener("click", copyDistrictCode);
 regenerateDistrictCodeBtn.addEventListener("click", regenerateDistrictCode);
 closeManagedClassroomBtn.addEventListener("click", closeManagedClassroom);
+closeDistrictTeachersBtn.addEventListener("click", () => {
+  districtTeachersModal.classList.add("hidden");
+});
 closeScreenModal.addEventListener("click", () => screenModal.classList.add("hidden"));
 window.addEventListener("beforeunload", () => {
   stopTeacherHeartbeat();
@@ -340,7 +358,7 @@ async function mountAdminPanel(profile) {
     activeDistrictId: profile.role === "super_admin" ? null : profile.districtId || null
   };
 
-  districtControls.classList.toggle("hidden", adminContext.role !== "super_admin");
+  openCreateDistrictBtn.classList.toggle("hidden", adminContext.role !== "super_admin");
   managedClassroomBar.classList.toggle("hidden", !managedClassroomId);
   districtCodeBar.classList.add("hidden");
 
@@ -368,6 +386,10 @@ async function mountAdminPanel(profile) {
     renderDistrictClassrooms();
   });
 
+  stopUsersWatcher = onValue(ref(db, "users"), (snapshot) => {
+    usersCache = snapshot.val() || {};
+  });
+
   setupModal.classList.add("hidden");
   if (!managedClassroomId) {
     classRefPath = "";
@@ -390,11 +412,6 @@ function renderPendingApprovals() {
     return;
   }
 
-  if (!Object.keys(districtsCache).length && adminContext.role === "super_admin") {
-    pendingTeachers.innerHTML = "<p>Create at least one district before approving users.</p>";
-    return;
-  }
-
   pendingList.forEach((pendingUser) => {
     const row = document.createElement("div");
     row.className = "student-row";
@@ -410,6 +427,13 @@ function renderPendingApprovals() {
 
     if (adminContext.role === "super_admin") {
       districtSelect.innerHTML = '<option value="">Select district</option>';
+      if (!Object.keys(districtsCache).length) {
+        const autoOption = document.createElement("option");
+        autoOption.value = "__auto__";
+        autoOption.textContent = "Create General District";
+        districtSelect.appendChild(autoOption);
+        districtSelect.value = "__auto__";
+      }
       Object.entries(districtsCache).forEach(([id, district]) => {
         const option = document.createElement("option");
         option.value = id;
@@ -427,41 +451,57 @@ function renderPendingApprovals() {
       districtSelect.disabled = true;
     }
 
-    const roleSelect = document.createElement("select");
-    roleSelect.className = "approve-select";
-    roleSelect.innerHTML = `
-      <option value="teacher">Teacher</option>
-      <option value="admin">Admin</option>
-    `;
-
     const approveBtn = document.createElement("button");
     approveBtn.className = "btn primary";
     approveBtn.textContent = "Approve";
     approveBtn.addEventListener("click", async () => {
-      const districtId = districtSelect.value;
+      let districtId = districtSelect.value;
       if (!districtId) {
         statusBanner.textContent = "Select a district before approving.";
         return;
       }
 
-      const districtName = districtsCache[districtId]?.name || adminContext.districtName || "District";
-      const chosenRole = roleSelect.value;
+      if (districtId === "__auto__") {
+        districtId = push(ref(db, "districts")).key;
+        await set(ref(db, `districts/${districtId}`), {
+          districtId,
+          name: "General District",
+          joinCode: generateJoinCode(),
+          createdBy: currentUser.uid,
+          createdAt: Date.now()
+        });
+      }
 
+      const districtName = districtsCache[districtId]?.name || "General District";
       await update(ref(db, `users/${pendingUser.uid}`), {
         approved: true,
-        role: chosenRole,
+        role: "teacher",
         districtId,
         districtName,
+        deniedAt: null,
         updatedAt: Date.now()
       });
 
       await remove(ref(db, `pendingTeachers/${pendingUser.uid}`));
-      statusBanner.textContent = `Approved ${pendingUser.email} as ${chosenRole} in ${districtName}.`;
+      statusBanner.textContent = `Approved ${pendingUser.email} in ${districtName}.`;
+    });
+
+    const denyBtn = document.createElement("button");
+    denyBtn.className = "btn danger";
+    denyBtn.textContent = "Deny";
+    denyBtn.addEventListener("click", async () => {
+      await update(ref(db, `users/${pendingUser.uid}`), {
+        approved: false,
+        deniedAt: Date.now(),
+        updatedAt: Date.now()
+      });
+      await remove(ref(db, `pendingTeachers/${pendingUser.uid}`));
+      statusBanner.textContent = `Denied ${pendingUser.email}.`;
     });
 
     controls.appendChild(districtSelect);
-    controls.appendChild(roleSelect);
     controls.appendChild(approveBtn);
+    controls.appendChild(denyBtn);
 
     row.appendChild(left);
     row.appendChild(controls);
@@ -492,6 +532,16 @@ function renderDistrictList() {
       row.className = "student-row";
       row.innerHTML = `<div><strong>${district.name}</strong><br><small>ID: ${districtId}</small></div>`;
 
+      const controls = document.createElement("div");
+      controls.className = "approval-controls";
+
+      const teachersBtn = document.createElement("button");
+      teachersBtn.className = "btn";
+      teachersBtn.textContent = "View Teachers";
+      teachersBtn.addEventListener("click", () => {
+        openDistrictTeachers(districtId, district.name);
+      });
+
       const openBtn = document.createElement("button");
       openBtn.className = "btn";
       openBtn.textContent = adminContext.activeDistrictId === districtId ? "Opened" : "Open district";
@@ -514,7 +564,9 @@ function renderDistrictList() {
         renderDistrictCode();
       });
 
-      row.appendChild(openBtn);
+      controls.appendChild(teachersBtn);
+      controls.appendChild(openBtn);
+      row.appendChild(controls);
       districtList.appendChild(row);
     });
 
@@ -522,6 +574,30 @@ function renderDistrictList() {
   districtScopeText.textContent = scopeDistrict
     ? `Scope: ${scopeDistrict}`
     : "Scope: select a district";
+}
+
+function openDistrictTeachers(districtId, districtName) {
+  const teachers = Object.values(usersCache || {}).filter((user) => {
+    return user?.approved && user?.role === "teacher" && user?.districtId === districtId;
+  });
+
+  districtTeachersTitle.textContent = `${districtName} Teachers`;
+  districtTeachersList.innerHTML = "";
+
+  if (!teachers.length) {
+    districtTeachersList.innerHTML = "<p>No approved teachers in this district.</p>";
+  } else {
+    teachers
+      .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""))
+      .forEach((teacher) => {
+        const row = document.createElement("div");
+        row.className = "student-row";
+        row.innerHTML = `<div><strong>${teacher.displayName || "Unknown"}</strong><br>${teacher.email || "No email"}</div>`;
+        districtTeachersList.appendChild(row);
+      });
+  }
+
+  districtTeachersModal.classList.remove("hidden");
 }
 
 function renderDistrictCode() {
@@ -584,8 +660,19 @@ async function createDistrict() {
   if (!adminContext || adminContext.role !== "super_admin") return;
 
   const name = districtNameInput.value.trim();
+  const joinCode = districtJoinCodeInput.value.trim().toUpperCase();
   if (!name) {
     statusBanner.textContent = "Enter a district name.";
+    return;
+  }
+  if (!joinCode) {
+    statusBanner.textContent = "Enter a custom district code.";
+    return;
+  }
+
+  const duplicate = Object.values(districtsCache).some((district) => (district?.joinCode || "").toUpperCase() === joinCode);
+  if (duplicate) {
+    statusBanner.textContent = "That district code already exists.";
     return;
   }
 
@@ -593,13 +680,15 @@ async function createDistrict() {
   await set(ref(db, `districts/${districtId}`), {
     districtId,
     name,
-    joinCode: generateJoinCode(),
+    joinCode,
     createdBy: currentUser.uid,
     createdAt: Date.now()
   });
 
   adminContext.activeDistrictId = districtId;
   districtNameInput.value = "";
+  districtJoinCodeInput.value = "";
+  createDistrictModal.classList.add("hidden");
   statusBanner.textContent = `District created: ${name}`;
 }
 
@@ -1042,6 +1131,10 @@ function cleanupAdminWatchers() {
   if (stopAdminClassroomsWatcher) {
     stopAdminClassroomsWatcher();
     stopAdminClassroomsWatcher = null;
+  }
+  if (stopUsersWatcher) {
+    stopUsersWatcher();
+    stopUsersWatcher = null;
   }
 }
 

@@ -100,13 +100,14 @@
 
         <section id="admin-tab" class="tab">
           <div class="card">
-            <h3>Admin Controls</h3>
-            <p>Super admin account: <strong>antonkrupinski0@gmail.com</strong></p>
-            <p id="district-scope" class="form-help"></p>
-            <div id="district-controls" class="admin-controls">
-              <input id="district-name-input" type="text" placeholder="New district name">
-              <button id="create-district-btn" class="btn">Create district</button>
+            <div class="row-between">
+              <div>
+                <h3>Districts</h3>
+                <p>Super admin account: <strong>antonkrupinski0@gmail.com</strong></p>
+              </div>
+              <button id="open-create-district-btn" class="class-plus-btn small" aria-label="Create district">+</button>
             </div>
+            <p id="district-scope" class="form-help"></p>
             <h4>Districts</h4>
             <div id="district-list"></div>
             <div id="district-code-bar" class="managed-bar hidden">
@@ -118,8 +119,14 @@
               <span id="managed-classroom-label">Managing classroom</span>
               <button id="close-managed-classroom-btn" class="btn">Close classroom</button>
             </div>
+          </div>
+          <div class="card">
+            <h3>Teacher Approvals</h3>
             <h4>Pending Approvals</h4>
             <div id="pending-teachers"></div>
+          </div>
+          <div class="card">
+            <h3>District Classrooms</h3>
             <h4>District Classrooms</h4>
             <div id="district-classrooms"></div>
           </div>
@@ -175,6 +182,30 @@
         <button id="cancel-class-create-btn" class="btn">Cancel</button>
         <button id="create-class-btn" class="btn primary">Create class</button>
       </div>
+    </div>
+  </div>
+
+  <div id="create-district-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Create District</h3>
+      <label>District name</label>
+      <input id="district-name-input" type="text" placeholder="New district name">
+      <label>Custom join code</label>
+      <input id="district-join-code-input" type="text" placeholder="DISTRICT01">
+      <div class="row-between">
+        <button id="cancel-create-district-btn" class="btn">Cancel</button>
+        <button id="create-district-btn" class="btn primary">Create district</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="district-teachers-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="row-between">
+        <h3 id="district-teachers-title">District Teachers</h3>
+        <button id="close-district-teachers-btn" class="btn">Close</button>
+      </div>
+      <div id="district-teachers-list"></div>
     </div>
   </div>
 
