@@ -33,6 +33,7 @@ const googleLoginBtn = document.getElementById("google-login-btn");
 const authStatus = document.getElementById("auth-status");
 const logoutBtn = document.getElementById("logout-btn");
 const statusBanner = document.getElementById("status-banner");
+const pendingView = document.getElementById("pending-view");
 const userPill = document.getElementById("user-pill");
 const topbarRole = document.getElementById("topbar-role");
 const classCodeDisplay = document.getElementById("class-code-display");
@@ -198,7 +199,7 @@ onAuthStateChanged(auth, async (user) => {
   userPill.textContent = user.email;
   teacherNameInput.value = user.displayName || "";
 
-  if (user.email === SUPER_ADMIN_EMAIL) {
+  if (normalizeEmail(user.email) === normalizeEmail(SUPER_ADMIN_EMAIL)) {
     await ensureSuperAdminRecord(user);
     topbarRole.textContent = "Role: Super Admin";
     setRoleUI("admin");
@@ -274,6 +275,14 @@ async function mountUserFlow(user) {
     const justApproved = !lastApprovedState && Boolean(userProfile.approved);
     lastApprovedState = Boolean(userProfile.approved);
 
+    if (userProfile.role === "super_admin") {
+      topbarRole.textContent = "Role: Super Admin";
+      statusBanner.textContent = "Super admin access enabled.";
+      setRoleUI("admin");
+      await mountAdminPanel({ role: "super_admin", districtId: null, districtName: "All districts" });
+      return;
+    }
+
     if (!userProfile.approved) {
       topbarRole.textContent = "Role: Pending Approval";
       statusBanner.textContent = "Waiting for district assignment and approval.";
@@ -318,6 +327,7 @@ async function mountUserFlow(user) {
 function setRoleUI(role) {
   const showTeacherTabs = role === "teacher" || role === "admin_manage";
   const showAdminTab = role === "admin" || role === "admin_manage";
+  pendingView.classList.toggle("hidden", role !== "pending");
 
   screensTabBtn.classList.toggle("hidden", !showTeacherTabs);
   studentsTabBtn.classList.toggle("hidden", !showTeacherTabs);
@@ -1204,6 +1214,10 @@ function setAuthError(error) {
 
 function setAuthMessage(message) {
   if (authStatus) authStatus.textContent = message;
+}
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
 }
 
 function sanitizeText(value) {
