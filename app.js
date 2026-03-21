@@ -95,6 +95,10 @@ const closeScreenModal = document.getElementById("close-screen-modal");
 const screensTabBtn = document.querySelector('[data-tab="screens"]');
 const studentsTabBtn = document.querySelector('[data-tab="students"]');
 const settingsTabBtn = document.querySelector('[data-tab="settings"]');
+const screensTab = document.getElementById("screens-tab");
+const studentsTab = document.getElementById("students-tab");
+const settingsTab = document.getElementById("settings-tab");
+const adminTab = document.getElementById("admin-tab");
 
 let currentUser = null;
 let userProfile = null;
@@ -331,6 +335,7 @@ function setRoleUI(role) {
   studentsTabBtn.classList.toggle("hidden", !showTeacherTabs);
   settingsTabBtn.classList.toggle("hidden", !showTeacherTabs);
   adminTabBtn.classList.toggle("hidden", !showAdminTab);
+  forceSectionVisibility(role);
 
   if (role === "teacher" || role === "admin_manage") {
     if (document.querySelector(".tab-btn.active")?.dataset.tab === "admin") {
@@ -347,6 +352,18 @@ function setRoleUI(role) {
   }
 }
 
+function forceSectionVisibility(role) {
+  const showTeacher = role === "teacher" || role === "admin_manage";
+  const showAdmin = role === "admin" || role === "admin_manage";
+  const showPending = role === "pending";
+
+  screensTab.classList.toggle("hidden", !showTeacher);
+  studentsTab.classList.toggle("hidden", !showTeacher);
+  settingsTab.classList.toggle("hidden", !showTeacher);
+  adminTab.classList.toggle("hidden", !showAdmin);
+  pendingView.classList.toggle("hidden", !showPending);
+}
+
 function activateTab(tabName) {
   document.querySelectorAll(".tab-btn").forEach((btn) => btn.classList.remove("active"));
   document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
@@ -361,7 +378,7 @@ function activateTab(tabName) {
 async function showSuperAdminPanel() {
   topbarRole.textContent = "Role: Super Admin";
   statusBanner.textContent = "Super admin access enabled.";
-  pendingView.classList.add("hidden");
+  forceSectionVisibility("admin");
   setupModal.classList.add("hidden");
   classPickerModal.classList.add("hidden");
   classCreateModal.classList.add("hidden");
