@@ -201,9 +201,7 @@ onAuthStateChanged(auth, async (user) => {
 
   if (normalizeEmail(user.email) === normalizeEmail(SUPER_ADMIN_EMAIL)) {
     await ensureSuperAdminRecord(user);
-    topbarRole.textContent = "Role: Super Admin";
-    setRoleUI("admin");
-    await mountAdminPanel({ role: "super_admin", districtId: null, districtName: "All districts" });
+    await showSuperAdminPanel();
     return;
   }
 
@@ -276,10 +274,7 @@ async function mountUserFlow(user) {
     lastApprovedState = Boolean(userProfile.approved);
 
     if (userProfile.role === "super_admin") {
-      topbarRole.textContent = "Role: Super Admin";
-      statusBanner.textContent = "Super admin access enabled.";
-      setRoleUI("admin");
-      await mountAdminPanel({ role: "super_admin", districtId: null, districtName: "All districts" });
+      await showSuperAdminPanel();
       return;
     }
 
@@ -287,6 +282,9 @@ async function mountUserFlow(user) {
       topbarRole.textContent = "Role: Pending Approval";
       statusBanner.textContent = "Waiting for district assignment and approval.";
       setupModal.classList.add("hidden");
+      classPickerModal.classList.add("hidden");
+      classCreateModal.classList.add("hidden");
+      addStudentsModal.classList.add("hidden");
       setRoleUI("pending");
       return;
     }
@@ -358,6 +356,22 @@ function activateTab(tabName) {
 
   if (targetBtn && !targetBtn.classList.contains("hidden")) targetBtn.classList.add("active");
   if (targetTab) targetTab.classList.add("active");
+}
+
+async function showSuperAdminPanel() {
+  topbarRole.textContent = "Role: Super Admin";
+  statusBanner.textContent = "Super admin access enabled.";
+  pendingView.classList.add("hidden");
+  setupModal.classList.add("hidden");
+  classPickerModal.classList.add("hidden");
+  classCreateModal.classList.add("hidden");
+  addStudentsModal.classList.add("hidden");
+  screensTabBtn.classList.add("hidden");
+  studentsTabBtn.classList.add("hidden");
+  settingsTabBtn.classList.add("hidden");
+  adminTabBtn.classList.remove("hidden");
+  activateTab("admin");
+  await mountAdminPanel({ role: "super_admin", districtId: null, districtName: "All districts" });
 }
 
 async function mountAdminPanel(profile) {
