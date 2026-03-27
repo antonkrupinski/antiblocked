@@ -283,6 +283,7 @@ async function mountUserFlow(user) {
     }
 
     if (!userProfile.approved) {
+      resetMainPanels();
       topbarRole.textContent = "Role: Pending Approval";
       statusBanner.textContent = "Waiting for district assignment and approval.";
       setupModal.classList.add("hidden");
@@ -327,9 +328,9 @@ async function mountUserFlow(user) {
 }
 
 function setRoleUI(role) {
+  resetMainPanels();
   const showTeacherTabs = role === "teacher" || role === "admin_manage";
   const showAdminTab = role === "admin" || role === "admin_manage";
-  pendingView.classList.toggle("hidden", role !== "pending");
 
   screensTabBtn.classList.toggle("hidden", !showTeacherTabs);
   studentsTabBtn.classList.toggle("hidden", !showTeacherTabs);
@@ -350,6 +351,20 @@ function setRoleUI(role) {
     document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
     statusBanner.textContent = "Waiting for approval.";
   }
+}
+
+function resetMainPanels() {
+  pendingView.classList.add("hidden");
+  screensTab.classList.add("hidden");
+  studentsTab.classList.add("hidden");
+  settingsTab.classList.add("hidden");
+  adminTab.classList.add("hidden");
+  screensTabBtn.classList.add("hidden");
+  studentsTabBtn.classList.add("hidden");
+  settingsTabBtn.classList.add("hidden");
+  adminTabBtn.classList.add("hidden");
+  document.querySelectorAll(".tab-btn").forEach((btn) => btn.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
 }
 
 function forceSectionVisibility(role) {
@@ -376,6 +391,7 @@ function activateTab(tabName) {
 }
 
 async function showSuperAdminPanel() {
+  resetMainPanels();
   topbarRole.textContent = "Role: Super Admin";
   statusBanner.textContent = "Super admin access enabled.";
   forceSectionVisibility("admin");
@@ -383,9 +399,6 @@ async function showSuperAdminPanel() {
   classPickerModal.classList.add("hidden");
   classCreateModal.classList.add("hidden");
   addStudentsModal.classList.add("hidden");
-  screensTabBtn.classList.add("hidden");
-  studentsTabBtn.classList.add("hidden");
-  settingsTabBtn.classList.add("hidden");
   adminTabBtn.classList.remove("hidden");
   activateTab("admin");
   await mountAdminPanel({ role: "super_admin", districtId: null, districtName: "All districts" });
