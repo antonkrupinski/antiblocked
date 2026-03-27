@@ -1,10 +1,10 @@
 export const firebaseConfig = {
-  apiKey: "AIzaSyC6ZFOhBH5KanGpNpqZ96SGjvybnDeO3ac",
-  authDomain: "anton-871fe.firebaseapp.com",
-  databaseURL: "https://anton-871fe-default-rtdb.firebaseio.com",
-  projectId: "anton-871fe",
-  storageBucket: "anton-871fe.firebasestorage.app",
-  messagingSenderId: "211150176132",
-  appId: "1:211150176132:web:784dbf612c22bf249a67d1",
-  measurementId: "G-DTEQWG8DJ5"
+  apiKey: "AIzaSyDk9LjNW1mca7urk5mJr2WNn_RQzPRlDuc",
+  authDomain: "anti-blocked.firebaseapp.com",
+  databaseURL: "https://anti-blocked-default-rtdb.firebaseio.com",
+  projectId: "anti-blocked",
+  storageBucket: "anti-blocked.firebasestorage.app",
+  messagingSenderId: "250880897658",
+  appId: "1:250880897658:web:dbff6d4d757a4eb269c1c3",
+  measurementId: "G-HQ5KZ9FBWS"
 };

@@ -251,25 +251,36 @@ async function ensureSuperAdminRecord(user) {
 
 async function mountUserFlow(user) {
   const userRef = ref(db, `users/${user.uid}`);
-  const snap = await get(userRef);
+  let snap;
+  try {
+    snap = await get(userRef);
+  } catch (error) {
+    handleDatabasePermissionError(error);
+    return;
+  }
 
   if (!snap.exists()) {
-    await set(userRef, {
-      email: user.email,
-      displayName: user.displayName || "",
-      role: "teacher",
-      approved: false,
-      districtId: null,
-      districtName: "",
-      updatedAt: Date.now()
-    });
+    try {
+      await set(userRef, {
+        email: user.email,
+        displayName: user.displayName || "",
+        role: "teacher",
+        approved: false,
+        districtId: null,
+        districtName: "",
+        updatedAt: Date.now()
+      });
 
-    await set(ref(db, `pendingTeachers/${user.uid}`), {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName || "",
-      requestedAt: Date.now()
-    });
+      await set(ref(db, `pendingTeachers/${user.uid}`), {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || "",
+        requestedAt: Date.now()
+      });
+    } catch (error) {
+      handleDatabasePermissionError(error);
+      return;
+    }
   }
 
   stopUserWatcher = onValue(userRef, async (profileSnap) => {
@@ -1262,6 +1273,15 @@ function setAuthMessage(message) {
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
+}
+
+function handleDatabasePermissionError(error) {
+  if (error?.message?.includes("Permission denied")) {
+    statusBanner.textContent = "Firebase Realtime Database denied access. Check your database rules for users and pendingTeachers.";
+    pendingView.classList.remove("hidden");
+    return;
+  }
+  statusBanner.textContent = error?.message || "Database request failed.";
 }
 
 function sanitizeText(value) {
