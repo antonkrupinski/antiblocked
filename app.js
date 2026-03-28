@@ -29,6 +29,9 @@ const googleProvider = new GoogleAuthProvider();
 
 const authView = document.getElementById("auth-view");
 const appView = document.getElementById("app-view");
+const welcomeOverlay = document.getElementById("welcome-overlay");
+const welcomeTitle = document.getElementById("welcome-title");
+const welcomeSubtitle = document.getElementById("welcome-subtitle");
 const googleLoginBtn = document.getElementById("google-login-btn");
 const authStatus = document.getElementById("auth-status");
 const logoutBtn = document.getElementById("logout-btn");
@@ -137,6 +140,7 @@ let teacherHeartbeatTimer = null;
 let activeTeacherClassId = null;
 let viewingAllClassrooms = false;
 let allClassroomSelection = new Set();
+let lastWelcomeEmail = "";
 
 const tabs = document.querySelectorAll(".tab-btn");
 
@@ -223,7 +227,9 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) {
     authView.classList.remove("hidden");
     appView.classList.add("hidden");
+    welcomeOverlay.classList.add("hidden");
     topbarRole.textContent = "";
+    lastWelcomeEmail = "";
     return;
   }
 
@@ -231,6 +237,7 @@ onAuthStateChanged(auth, async (user) => {
   appView.classList.remove("hidden");
   userPill.textContent = user.email;
   teacherNameInput.value = user.displayName || "";
+  await playWelcomeSequence(user);
 
   if (normalizeEmail(user.email) === normalizeEmail(SUPER_ADMIN_EMAIL)) {
     await ensureSuperAdminRecord(user);
@@ -264,6 +271,41 @@ async function handleGoogleLogin() {
     }
     setAuthError(error);
   }
+}
+
+function formatWelcomeName(user) {
+  const raw = String(user?.displayName || "").trim();
+  if (!raw) {
+    const fallback = String(user?.email || "Teacher").split("@")[0];
+    return `Welcome, ${fallback}`;
+  }
+
+  const parts = raw.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    return `Welcome, ${parts[0]}`;
+  }
+
+  const firstName = parts[0];
+  const lastName = parts[parts.length - 1];
+  return `Welcome, ${lastName}, ${firstName}`;
+}
+
+async function playWelcomeSequence(user) {
+  const email = normalizeEmail(user?.email || "");
+  if (!email || lastWelcomeEmail === email) return;
+
+  lastWelcomeEmail = email;
+  welcomeTitle.textContent = formatWelcomeName(user);
+  welcomeSubtitle.textContent = "Preparing your classroom...";
+  welcomeOverlay.classList.remove("hidden");
+  await delay(2100);
+  welcomeOverlay.classList.add("hidden");
+}
+
+function delay(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 }
 
 async function ensureSuperAdminRecord(user) {
