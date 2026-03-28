@@ -36,8 +36,11 @@ const statusBanner = document.getElementById("status-banner");
 const pendingView = document.getElementById("pending-view");
 const userPill = document.getElementById("user-pill");
 const topbarRole = document.getElementById("topbar-role");
+const classViewLabel = document.getElementById("class-view-label");
 const classCodeDisplay = document.getElementById("class-code-display");
 const copyClassCodeBtn = document.getElementById("copy-class-code-btn");
+const openTestModeBtn = document.getElementById("open-test-mode-btn");
+const chooseClassroomBtn = document.getElementById("choose-classroom-btn");
 const screensGrid = document.getElementById("screens-grid");
 const studentsList = document.getElementById("students-list");
 const blockedDomainsInput = document.getElementById("blocked-domains");
@@ -72,6 +75,7 @@ const completeSetupBtn = document.getElementById("complete-setup-btn");
 const classPickerModal = document.getElementById("class-picker-modal");
 const classPickerList = document.getElementById("class-picker-list");
 const newClassBtn = document.getElementById("new-class-btn");
+const viewAllClassesBtn = document.getElementById("view-all-classes-btn");
 const closeClassPickerBtn = document.getElementById("close-class-picker-btn");
 const classCreateModal = document.getElementById("class-create-modal");
 const newClassNameInput = document.getElementById("new-class-name");
@@ -84,6 +88,11 @@ const addStudentsModal = document.getElementById("add-students-modal");
 const addStudentsList = document.getElementById("add-students-list");
 const cancelAddStudentsBtn = document.getElementById("cancel-add-students-btn");
 const confirmAddStudentsBtn = document.getElementById("confirm-add-students-btn");
+const testModeModal = document.getElementById("test-mode-modal");
+const testModeLinks = document.getElementById("test-mode-links");
+const enableTestModeBtn = document.getElementById("enable-test-mode-btn");
+const disableTestModeBtn = document.getElementById("disable-test-mode-btn");
+const closeTestModeBtn = document.getElementById("close-test-mode-btn");
 const refreshScreensBtn = document.getElementById("refresh-screens-btn");
 const screenModal = document.getElementById("screen-modal");
 const screenModalImage = document.getElementById("screen-modal-image");
@@ -104,7 +113,7 @@ let currentUser = null;
 let userProfile = null;
 let classRefPath = "";
 let classroomData = null;
-let selectedStudentId = "";
+let selectedStudentContext = null;
 let adminContext = null;
 let districtsCache = {};
 let pendingCache = {};
@@ -125,6 +134,9 @@ let stopTeacherDistrictWatcher = null;
 let stopUsersWatcher = null;
 let lastApprovedState = false;
 let teacherHeartbeatTimer = null;
+let activeTeacherClassId = null;
+let viewingAllClassrooms = false;
+let allClassroomSelection = new Set();
 
 const tabs = document.querySelectorAll(".tab-btn");
 
@@ -143,6 +155,8 @@ completeSetupBtn.addEventListener("click", createClassroomForTeacher);
 saveSettingsBtn.addEventListener("click", saveClassroomSettings);
 refreshScreensBtn.addEventListener("click", renderClassroomViews);
 copyClassCodeBtn.addEventListener("click", copyClassCode);
+openTestModeBtn.addEventListener("click", openTestModeModal);
+chooseClassroomBtn.addEventListener("click", showClassPicker);
 openCreateDistrictBtn.addEventListener("click", () => {
   createDistrictModal.classList.remove("hidden");
 });
@@ -156,7 +170,10 @@ closeManagedClassroomBtn.addEventListener("click", closeManagedClassroom);
 closeDistrictTeachersBtn.addEventListener("click", () => {
   districtTeachersModal.classList.add("hidden");
 });
-closeScreenModal.addEventListener("click", () => screenModal.classList.add("hidden"));
+closeScreenModal.addEventListener("click", () => {
+  selectedStudentContext = null;
+  screenModal.classList.add("hidden");
+});
 window.addEventListener("beforeunload", () => {
   stopTeacherHeartbeat();
 });
@@ -164,7 +181,12 @@ newClassBtn.addEventListener("click", () => {
   classCreateModal.classList.remove("hidden");
   renderClassStudentsPicker();
 });
+viewAllClassesBtn.addEventListener("click", openAllClassroomsView);
 closeClassPickerBtn.addEventListener("click", () => {
+  if (!activeTeacherClassId && !viewingAllClassrooms) {
+    statusBanner.textContent = "Select a classroom or open an all-classrooms view to continue.";
+    return;
+  }
   classPickerModal.classList.add("hidden");
 });
 cancelClassCreateBtn.addEventListener("click", () => {
@@ -179,6 +201,9 @@ cancelAddStudentsBtn.addEventListener("click", () => {
   addStudentsModal.classList.add("hidden");
 });
 confirmAddStudentsBtn.addEventListener("click", addSelectedStudentsToCurrentClass);
+closeTestModeBtn.addEventListener("click", () => testModeModal.classList.add("hidden"));
+enableTestModeBtn.addEventListener("click", () => setTestModeEnabled(true));
+disableTestModeBtn.addEventListener("click", () => setTestModeEnabled(false));
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
@@ -190,6 +215,10 @@ onAuthStateChanged(auth, async (user) => {
   adminContext = null;
   managedClassroomId = null;
   lastApprovedState = false;
+  activeTeacherClassId = null;
+  viewingAllClassrooms = false;
+  allClassroomSelection = new Set();
+  selectedStudentContext = null;
 
   if (!user) {
     authView.classList.remove("hidden");
@@ -322,8 +351,16 @@ async function mountUserFlow(user) {
     watchTeacherClasses();
     watchTeacherDistrict();
 
-    const activeClassId = userProfile.activeClassId || userProfile.classId || null;
-    if (!activeClassId) {
+    if (viewingAllClassrooms && allClassroomSelection.size) {
+      classRefPath = "";
+      classroomData = null;
+      stopTeacherHeartbeat();
+      renderCurrentViewLabel();
+      renderClassroomViews();
+      return;
+    }
+
+    if (!activeTeacherClassId) {
       if (justApproved) {
         statusBanner.textContent = "Approved. Select or create a classroom to continue.";
       }
@@ -332,8 +369,9 @@ async function mountUserFlow(user) {
       return;
     }
 
-    classRefPath = `classrooms/${activeClassId}`;
-    startTeacherHeartbeat(activeClassId);
+    classRefPath = `classrooms/${activeTeacherClassId}`;
+    startTeacherHeartbeat(activeTeacherClassId);
+    renderCurrentViewLabel();
     watchClassroom();
   });
 }
@@ -788,6 +826,7 @@ async function copyDistrictCode() {
 function openManagedClassroom(room) {
   if (!room?.classId) return;
   managedClassroomId = room.classId;
+  selectedStudentContext = null;
   classRefPath = `classrooms/${room.classId}`;
   managedClassroomLabel.textContent = `Managing ${room.teacherName || "Teacher"} · ${room.classCode || "N/A"}`;
   managedClassroomBar.classList.remove("hidden");
@@ -799,6 +838,7 @@ function openManagedClassroom(room) {
 
 function closeManagedClassroom() {
   managedClassroomId = null;
+  selectedStudentContext = null;
   classRefPath = "";
   classroomData = null;
   screensGrid.innerHTML = "";
@@ -832,46 +872,109 @@ function watchClassroom() {
   });
 }
 
-function renderClassroomViews() {
-  if (!classroomData) return;
+function getScreenPreviewMarkup(student, fallbackLabel = "Preview unavailable for this tab.") {
+  if (student.lastScreenshot) {
+    return `<img src="${student.lastScreenshot}" alt="${student.displayName || "Student"}">`;
+  }
 
-  const students = classroomData.students || {};
-  const studentIds = Object.keys(students).filter((id) => students[id]?.active);
+  return `
+    <div class="screen-unavailable">
+      <strong>${student.screenshotReason || fallbackLabel}</strong>
+      <span>${student.currentUrl || "Protected or internal Chrome tab"}</span>
+    </div>
+  `;
+}
+
+function setScreenModalPreview(student) {
+  if (student.lastScreenshot) {
+    screenModalImage.src = student.lastScreenshot;
+    screenModalImage.alt = student.displayName || "Student screen";
+    screenModalImage.classList.remove("preview-unavailable");
+    return;
+  }
+
+  screenModalImage.src = "";
+  screenModalImage.alt = student.screenshotReason || "Preview unavailable";
+  screenModalImage.classList.add("preview-unavailable");
+}
+
+function renderClassroomViews() {
+  const entries = [];
+  let settings = { blockedDomains: [], blockedCategories: [] };
+
+  if (viewingAllClassrooms) {
+    teacherClassesCache
+      .filter((room) => allClassroomSelection.has(room.classId))
+      .forEach((room) => {
+        Object.entries(room.students || {})
+          .filter(([, student]) => student?.active)
+          .forEach(([studentId, student]) => {
+            entries.push({
+              renderId: `${room.classId}:${studentId}`,
+              classId: room.classId,
+              className: room.className || room.classType || "Class",
+              studentId,
+              student
+            });
+          });
+      });
+  } else {
+    if (!classroomData) return;
+    settings = classroomData.settings || settings;
+    Object.entries(classroomData.students || {})
+      .filter(([, student]) => student?.active)
+      .forEach(([studentId, student]) => {
+        entries.push({
+          renderId: studentId,
+          classId: activeTeacherClassId,
+          className: classroomData.className || classroomData.classType || "Class",
+          studentId,
+          student
+        });
+      });
+  }
 
   screensGrid.innerHTML = "";
   studentsList.innerHTML = "";
 
-  if (!studentIds.length) {
+  if (!entries.length) {
     screensGrid.innerHTML = "<p>No students connected yet.</p>";
     studentsList.innerHTML = "<p>No students connected yet.</p>";
   }
 
-  studentIds.forEach((id) => {
-    const student = students[id];
+  entries.forEach((entry) => {
+    const { student, studentId, classId, className } = entry;
 
     const screenCard = document.createElement("div");
     screenCard.className = "screen-card";
     const activeTab = Array.isArray(student.openTabs) ? student.openTabs.find((tab) => tab?.active) : null;
     screenCard.innerHTML = `
-      <img src="${student.lastScreenshot || ""}" alt="${student.displayName || "Student"}">
+      ${getScreenPreviewMarkup(student)}
       <div class="screen-meta">
         <strong>${student.displayName || "Student"}</strong><br>
         <small>${student.email || "No email"}</small>
+        ${viewingAllClassrooms ? `<div class="screen-tabs-preview">${className}</div>` : ""}
         <div class="screen-tabs-preview">${activeTab?.title || student.currentUrl || "No active tab info yet"}</div>
       </div>
     `;
-    screenCard.addEventListener("click", () => openScreenModal(id, student));
+    screenCard.addEventListener("click", () => openScreenModal(studentId, classId, student, className));
     screensGrid.appendChild(screenCard);
 
     const row = document.createElement("div");
     row.className = "student-row";
-    row.innerHTML = `<div><strong>${student.displayName || "Student"}</strong><br>${student.email || "No email"}</div>`;
+    row.innerHTML = `
+      <div>
+        <strong>${student.displayName || "Student"}</strong><br>
+        ${student.email || "No email"}
+        ${viewingAllClassrooms ? `<br><small>${className}</small>` : ""}
+      </div>
+    `;
 
     const removeBtn = document.createElement("button");
     removeBtn.className = "btn danger";
     removeBtn.textContent = "Remove";
     removeBtn.addEventListener("click", async () => {
-      await update(ref(db, `${classRefPath}/students/${id}`), {
+      await update(ref(db, `classrooms/${classId}/students/${studentId}`), {
         active: false,
         removedAt: Date.now()
       });
@@ -881,23 +984,40 @@ function renderClassroomViews() {
     studentsList.appendChild(row);
   });
 
-  if (!screenModal.classList.contains("hidden") && selectedStudentId) {
-    const focusedStudent = students[selectedStudentId];
+  if (!screenModal.classList.contains("hidden") && selectedStudentContext) {
+    const focusedStudent = viewingAllClassrooms
+      ? teacherClassesCache
+          .find((room) => room.classId === selectedStudentContext.classId)
+          ?.students?.[selectedStudentContext.studentId]
+      : classroomData?.students?.[selectedStudentContext.studentId];
+
     if (focusedStudent?.active) {
-      screenModalTitle.textContent = focusedStudent.displayName || "Student screen";
-      if (focusedStudent.lastScreenshot) {
-        screenModalImage.src = focusedStudent.lastScreenshot;
-      }
+      const activeClassName = viewingAllClassrooms
+        ? teacherClassesCache.find((room) => room.classId === selectedStudentContext.classId)?.className
+          || teacherClassesCache.find((room) => room.classId === selectedStudentContext.classId)?.classType
+          || "Class"
+        : classroomData?.className || classroomData?.classType || "Class";
+
+      screenModalTitle.textContent = viewingAllClassrooms
+        ? `${focusedStudent.displayName || "Student screen"} · ${activeClassName}`
+        : focusedStudent.displayName || "Student screen";
+      setScreenModalPreview(focusedStudent);
       renderStudentTabsPanel(focusedStudent);
     } else {
       screenModal.classList.add("hidden");
-      selectedStudentId = "";
+      selectedStudentContext = null;
     }
   }
 
-  const settings = classroomData.settings || {};
-  blockedDomainsInput.value = (settings.blockedDomains || []).join(", ");
-  const selectedCategories = new Set(settings.blockedCategories || []);
+  blockedDomainsInput.disabled = viewingAllClassrooms;
+  blockedCategoriesSelect.disabled = viewingAllClassrooms;
+  saveSettingsBtn.disabled = viewingAllClassrooms;
+  openTestModeBtn.disabled = viewingAllClassrooms || !classRefPath;
+  openTestModeBtn.textContent = viewingAllClassrooms
+    ? "Test Mode"
+    : (settings.testModeEnabled ? "Test Mode On" : "Test Mode");
+  blockedDomainsInput.value = viewingAllClassrooms ? "" : (settings.blockedDomains || []).join(", ");
+  const selectedCategories = new Set(viewingAllClassrooms ? [] : settings.blockedCategories || []);
   Array.from(blockedCategoriesSelect.options).forEach((option) => {
     option.selected = selectedCategories.has(option.value);
   });
@@ -936,6 +1056,8 @@ function watchTeacherClasses() {
     const all = snapshot.val() || {};
     teacherClassesCache = Object.values(all).filter((room) => room.teacherId === currentUser.uid);
     renderClassPicker();
+    renderCurrentViewLabel();
+    if (viewingAllClassrooms) renderClassroomViews();
   });
 }
 
@@ -947,6 +1069,7 @@ function showClassPicker() {
 function renderClassPicker() {
   if (!classPickerList) return;
   classPickerList.innerHTML = "";
+  viewAllClassesBtn.disabled = !teacherClassesCache.length;
 
   if (!teacherClassesCache.length) {
     classPickerList.innerHTML = "<div class=\"card\">No classes yet. Click + to create one.</div>";
@@ -957,26 +1080,148 @@ function renderClassPicker() {
     const card = document.createElement("div");
     card.className = "class-card";
     const studentCount = Object.values(room.students || {}).filter((s) => s?.active).length;
-    card.innerHTML = `
-      <strong>${room.className || room.classType || "Class"}</strong><br>
-      <small>${studentCount} students</small><br>
-      <small>${room.classType || ""}</small>
+    const head = document.createElement("div");
+    head.className = "class-card-head";
+
+    const title = document.createElement("div");
+    title.innerHTML = `<strong>${room.className || room.classType || "Class"}</strong>`;
+
+    const checkbox = document.createElement("input");
+    checkbox.className = "class-card-checkbox";
+    checkbox.type = "checkbox";
+    checkbox.checked = allClassroomSelection.has(room.classId);
+    checkbox.addEventListener("click", (event) => event.stopPropagation());
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) {
+        allClassroomSelection.add(room.classId);
+      } else {
+        allClassroomSelection.delete(room.classId);
+      }
+    });
+
+    head.appendChild(title);
+    head.appendChild(checkbox);
+
+    const meta = document.createElement("div");
+    meta.className = "class-card-meta";
+    meta.innerHTML = `
+      <div>${studentCount} students</div>
+      <div>${room.classType || "Class"}</div>
+      <div>${room.classCode || "No class code"}</div>
     `;
+
+    card.appendChild(head);
+    card.appendChild(meta);
     card.addEventListener("click", () => selectClassroom(room.classId));
     classPickerList.appendChild(card);
   });
 }
 
+function renderCurrentViewLabel() {
+  if (viewingAllClassrooms) {
+    const selectedRooms = teacherClassesCache.filter((room) => allClassroomSelection.has(room.classId));
+    classViewLabel.textContent = selectedRooms.length
+      ? `Viewing all students across ${selectedRooms.length} classrooms.`
+      : "Select classrooms to view all screens.";
+    return;
+  }
+
+  const activeRoom = teacherClassesCache.find((room) => room.classId === activeTeacherClassId);
+  classViewLabel.textContent = activeRoom
+    ? `${activeRoom.className || activeRoom.classType || "Class"}`
+    : "Select a classroom to continue.";
+}
+
+function renderTestModeInputs(links = []) {
+  testModeLinks.innerHTML = "";
+  const values = Array.isArray(links) ? links.slice(0, 10) : [];
+
+  for (let i = 0; i < 10; i += 1) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = `Allowed link ${i + 1}`;
+    input.value = values[i] || "";
+    input.dataset.testModeLink = "true";
+    testModeLinks.appendChild(input);
+  }
+}
+
+function openTestModeModal() {
+  if (!classRefPath || viewingAllClassrooms) {
+    statusBanner.textContent = "Open a single classroom to manage Test Mode.";
+    return;
+  }
+
+  const settings = classroomData?.settings || {};
+  renderTestModeInputs(settings.testModeAllowedLinks || []);
+  const enabled = Boolean(settings.testModeEnabled);
+  enableTestModeBtn.textContent = enabled ? "Save Allowed Links" : "Enable";
+  disableTestModeBtn.classList.toggle("hidden", !enabled);
+  testModeModal.classList.remove("hidden");
+}
+
+async function setTestModeEnabled(enabled) {
+  if (!classRefPath || viewingAllClassrooms) return;
+
+  const links = Array.from(testModeLinks.querySelectorAll("input[data-test-mode-link=\"true\"]"))
+    .map((input) => input.value.trim())
+    .filter(Boolean)
+    .slice(0, 10);
+
+  if (enabled && !links.length) {
+    statusBanner.textContent = "Add at least one allowed link before enabling Test Mode.";
+    return;
+  }
+
+  await update(ref(db, `${classRefPath}/settings`), {
+    testModeEnabled: enabled,
+    testModeAllowedLinks: links,
+    updatedAt: Date.now()
+  });
+
+  statusBanner.textContent = enabled
+    ? `Test Mode enabled with ${links.length} allowed link${links.length === 1 ? "" : "s"}.`
+    : "Test Mode disabled.";
+  testModeModal.classList.add("hidden");
+}
+
 async function selectClassroom(classId) {
   if (!currentUser || !classId) return;
+  viewingAllClassrooms = false;
+  activeTeacherClassId = classId;
+  allClassroomSelection.add(classId);
+  selectedStudentContext = null;
   await update(ref(db, `users/${currentUser.uid}`), {
     activeClassId: classId,
     updatedAt: Date.now()
   });
   classRefPath = `classrooms/${classId}`;
   classPickerModal.classList.add("hidden");
+  renderCurrentViewLabel();
   startTeacherHeartbeat(classId);
   watchClassroom();
+}
+
+function openAllClassroomsView() {
+  if (!allClassroomSelection.size) {
+    statusBanner.textContent = "Select at least one classroom first.";
+    return;
+  }
+
+  viewingAllClassrooms = true;
+  activeTeacherClassId = null;
+  selectedStudentContext = null;
+  classRefPath = "";
+  classroomData = null;
+  if (stopClassroomWatcher) {
+    stopClassroomWatcher();
+    stopClassroomWatcher = null;
+  }
+  stopTeacherHeartbeat();
+  classPickerModal.classList.add("hidden");
+  activateTab("screens");
+  renderCurrentViewLabel();
+  renderClassroomViews();
 }
 
 function renderClassStudentsPicker() {
@@ -1024,7 +1269,9 @@ async function createClassFromPicker() {
     createdAt: Date.now(),
     settings: {
       blockedDomains: [],
-      blockedCategories: []
+      blockedCategories: [],
+      testModeEnabled: false,
+      testModeAllowedLinks: []
     },
     commands: {}
   });
@@ -1052,18 +1299,24 @@ async function createClassFromPicker() {
     updatedAt: Date.now()
   });
 
+  activeTeacherClassId = classId;
+  viewingAllClassrooms = false;
+  allClassroomSelection.add(classId);
   newClassNameInput.value = "";
   classCreateModal.classList.add("hidden");
   classPickerModal.classList.add("hidden");
   classRefPath = `classrooms/${classId}`;
+  renderCurrentViewLabel();
   startTeacherHeartbeat(classId);
   watchClassroom();
 }
 
-function openScreenModal(studentId, student) {
-  selectedStudentId = studentId;
-  screenModalTitle.textContent = student.displayName || "Student screen";
-  screenModalImage.src = student.lastScreenshot || "";
+function openScreenModal(studentId, classId, student, className = "") {
+  selectedStudentContext = { studentId, classId };
+  screenModalTitle.textContent = className
+    ? `${student.displayName || "Student screen"} · ${className}`
+    : student.displayName || "Student screen";
+  setScreenModalPreview(student);
   renderStudentTabsPanel(student);
   screenModal.classList.remove("hidden");
 }
@@ -1114,21 +1367,26 @@ function renderStudentTabsPanel(student) {
 }
 
 async function pushControlCommand(type, extra = {}) {
-  if (!selectedStudentId || !classRefPath) return;
+  if (!selectedStudentContext?.studentId) return;
+
+  const targetPath = selectedStudentContext.classId
+    ? `classrooms/${selectedStudentContext.classId}`
+    : classRefPath;
+  if (!targetPath) return;
 
   const payload = {
     type,
     createdAt: Date.now(),
-    targetStudentId: selectedStudentId,
+    targetStudentId: selectedStudentContext.studentId,
     ...extra
   };
 
-  await push(ref(db, `${classRefPath}/commands`), payload);
+  await push(ref(db, `${targetPath}/commands`), payload);
   statusBanner.textContent = `Sent command: ${type}`;
 }
 
 async function saveClassroomSettings() {
-  if (!classRefPath) return;
+  if (!classRefPath || viewingAllClassrooms) return;
 
   const domains = blockedDomainsInput.value
     .split(",")

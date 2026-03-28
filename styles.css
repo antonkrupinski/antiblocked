@@ -237,6 +237,12 @@ p {
   gap: 12px;
 }
 
+.picker-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .btn {
   border: 1px solid var(--line);
   background: #fff;
@@ -341,6 +347,28 @@ p {
   height: 166px;
   object-fit: cover;
   background: var(--bg-2);
+}
+
+.screen-unavailable {
+  width: 100%;
+  height: 166px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  background: linear-gradient(180deg, #e2e8f0, #cbd5e1);
+  color: #1e293b;
+}
+
+.screen-unavailable strong {
+  font-size: 14px;
+}
+
+.screen-unavailable span {
+  font-size: 12px;
+  color: #475569;
+  word-break: break-word;
 }
 
 .screen-meta {
@@ -470,6 +498,12 @@ select:focus {
   margin-top: 16px;
 }
 
+.class-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
 .class-card {
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -483,6 +517,25 @@ select:focus {
 .class-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 16px 30px rgba(16, 35, 63, 0.16);
+}
+
+.class-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.class-card-checkbox {
+  width: auto;
+  margin: 0;
+}
+
+.class-card-meta {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .class-plus-btn {
@@ -516,6 +569,12 @@ select:focus {
   overflow: auto;
   background: #f8fafc;
   margin-bottom: 12px;
+}
+
+.test-mode-links {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
 .class-student-row {
@@ -574,6 +633,12 @@ select:focus {
   object-fit: contain;
   background: #0b1220;
   border-radius: 10px;
+}
+
+#screen-modal-image.preview-unavailable {
+  min-height: 320px;
+  background: linear-gradient(180deg, #e2e8f0, #cbd5e1);
+  border: 1px solid var(--line);
 }
 
 .tabs-panel {

@@ -55,13 +55,18 @@
           <div class="card row-between">
             <div>
               <h3>Screens</h3>
+              <p id="class-view-label" class="form-help">Select a classroom to continue.</p>
               <div class="class-code-wrap">
                 <span class="class-code-label">District code</span>
                 <span id="class-code-display" class="class-code-pill">--------</span>
                 <button id="copy-class-code-btn" class="btn">Copy</button>
               </div>
             </div>
-            <button id="refresh-screens-btn" class="btn">Refresh</button>
+            <div class="picker-toolbar">
+              <button id="open-test-mode-btn" class="btn">Test Mode</button>
+              <button id="choose-classroom-btn" class="btn">Choose classroom</button>
+              <button id="refresh-screens-btn" class="btn">Refresh</button>
+            </div>
           </div>
           <div id="screens-grid" class="screens-grid"></div>
         </section>
@@ -163,6 +168,9 @@
         <h3>Select a Class</h3>
         <button id="close-class-picker-btn" class="btn">Close</button>
       </div>
+      <div class="class-picker-actions">
+        <button id="view-all-classes-btn" class="btn primary">View All Classrooms</button>
+      </div>
       <div id="class-picker-list" class="class-picker-grid"></div>
       <button id="new-class-btn" class="class-plus-btn" aria-label="Create new class">+</button>
     </div>
@@ -221,6 +229,21 @@
       <div class="row-between">
         <button id="cancel-add-students-btn" class="btn">Cancel</button>
         <button id="confirm-add-students-btn" class="btn primary">Add students</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="test-mode-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="row-between">
+        <h3>Test Mode</h3>
+        <button id="close-test-mode-btn" class="btn">Close</button>
+      </div>
+      <p class="form-help">Add up to 10 links that stay allowed during Test Mode. All other tabs will redirect to the blocked page.</p>
+      <div id="test-mode-links" class="test-mode-links"></div>
+      <div class="row-between">
+        <button id="disable-test-mode-btn" class="btn danger">Disable</button>
+        <button id="enable-test-mode-btn" class="btn primary">Enable</button>
       </div>
     </div>
   </div>
