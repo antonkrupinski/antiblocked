@@ -45,6 +45,23 @@
       </div>
     </header>
 
+    <section id="class-picker-page" class="class-picker-page hidden">
+      <div class="class-picker-shell">
+        <div class="row-between">
+          <div>
+            <p class="eyebrow">Classrooms</p>
+            <h3>Select a Class</h3>
+          </div>
+          <button id="close-class-picker-btn" class="btn">Back to dashboard</button>
+        </div>
+        <div class="class-picker-actions">
+          <button id="view-all-classes-btn" class="btn primary">View All Classrooms</button>
+        </div>
+        <div id="class-picker-list" class="class-picker-grid"></div>
+        <button id="new-class-btn" class="class-plus-btn" aria-label="Create new class">+</button>
+      </div>
+    </section>
+
     <main class="layout">
       <aside class="sidebar">
         <p class="sidebar-title">Navigation</p>
@@ -170,20 +187,6 @@
         <option value="Other">Other</option>
       </select>
       <button id="complete-setup-btn" class="btn primary">Create classroom</button>
-    </div>
-  </div>
-
-  <div id="class-picker-modal" class="modal hidden">
-    <div class="modal-content large">
-      <div class="row-between">
-        <h3>Select a Class</h3>
-        <button id="close-class-picker-btn" class="btn">Close</button>
-      </div>
-      <div class="class-picker-actions">
-        <button id="view-all-classes-btn" class="btn primary">View All Classrooms</button>
-      </div>
-      <div id="class-picker-list" class="class-picker-grid"></div>
-      <button id="new-class-btn" class="class-plus-btn" aria-label="Create new class">+</button>
     </div>
   </div>
 

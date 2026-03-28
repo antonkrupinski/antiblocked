@@ -29,6 +29,7 @@ const googleProvider = new GoogleAuthProvider();
 
 const authView = document.getElementById("auth-view");
 const appView = document.getElementById("app-view");
+const classPickerPage = document.getElementById("class-picker-page");
 const welcomeOverlay = document.getElementById("welcome-overlay");
 const welcomeTitle = document.getElementById("welcome-title");
 const welcomeSubtitle = document.getElementById("welcome-subtitle");
@@ -75,7 +76,6 @@ const setupModal = document.getElementById("setup-modal");
 const teacherNameInput = document.getElementById("teacher-name");
 const classTypeInput = document.getElementById("class-type");
 const completeSetupBtn = document.getElementById("complete-setup-btn");
-const classPickerModal = document.getElementById("class-picker-modal");
 const classPickerList = document.getElementById("class-picker-list");
 const newClassBtn = document.getElementById("new-class-btn");
 const viewAllClassesBtn = document.getElementById("view-all-classes-btn");
@@ -111,6 +111,7 @@ const screensTab = document.getElementById("screens-tab");
 const studentsTab = document.getElementById("students-tab");
 const settingsTab = document.getElementById("settings-tab");
 const adminTab = document.getElementById("admin-tab");
+const appLayout = document.querySelector(".layout");
 
 let currentUser = null;
 let userProfile = null;
@@ -191,7 +192,7 @@ closeClassPickerBtn.addEventListener("click", () => {
     statusBanner.textContent = "Select a classroom or open an all-classrooms view to continue.";
     return;
   }
-  classPickerModal.classList.add("hidden");
+  hideClassPickerPage();
 });
 cancelClassCreateBtn.addEventListener("click", () => {
   classCreateModal.classList.add("hidden");
@@ -369,7 +370,7 @@ async function mountUserFlow(user) {
       topbarRole.textContent = "Role: Pending Approval";
       statusBanner.textContent = "Waiting for district assignment and approval.";
       setupModal.classList.add("hidden");
-      classPickerModal.classList.add("hidden");
+      hideClassPickerPage();
       classCreateModal.classList.add("hidden");
       addStudentsModal.classList.add("hidden");
       setRoleUI("pending");
@@ -487,7 +488,7 @@ async function showSuperAdminPanel() {
   statusBanner.textContent = "Super admin access enabled.";
   forceSectionVisibility("admin");
   setupModal.classList.add("hidden");
-  classPickerModal.classList.add("hidden");
+  hideClassPickerPage();
   classCreateModal.classList.add("hidden");
   addStudentsModal.classList.add("hidden");
   adminTabBtn.classList.remove("hidden");
@@ -1104,8 +1105,14 @@ function watchTeacherClasses() {
 }
 
 function showClassPicker() {
-  classPickerModal.classList.remove("hidden");
+  classPickerPage.classList.remove("hidden");
+  appLayout.classList.add("hidden");
   renderClassPicker();
+}
+
+function hideClassPickerPage() {
+  classPickerPage.classList.add("hidden");
+  appLayout.classList.remove("hidden");
 }
 
 function renderClassPicker() {
@@ -1238,7 +1245,7 @@ async function selectClassroom(classId) {
     updatedAt: Date.now()
   });
   classRefPath = `classrooms/${classId}`;
-  classPickerModal.classList.add("hidden");
+  hideClassPickerPage();
   renderCurrentViewLabel();
   startTeacherHeartbeat(classId);
   watchClassroom();
@@ -1260,7 +1267,7 @@ function openAllClassroomsView() {
     stopClassroomWatcher = null;
   }
   stopTeacherHeartbeat();
-  classPickerModal.classList.add("hidden");
+  hideClassPickerPage();
   activateTab("screens");
   renderCurrentViewLabel();
   renderClassroomViews();
@@ -1346,7 +1353,7 @@ async function createClassFromPicker() {
   allClassroomSelection.add(classId);
   newClassNameInput.value = "";
   classCreateModal.classList.add("hidden");
-  classPickerModal.classList.add("hidden");
+  hideClassPickerPage();
   classRefPath = `classrooms/${classId}`;
   renderCurrentViewLabel();
   startTeacherHeartbeat(classId);
