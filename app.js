@@ -298,7 +298,7 @@ async function playWelcomeSequence(user) {
   welcomeTitle.textContent = formatWelcomeName(user);
   welcomeSubtitle.textContent = "Preparing your classroom...";
   welcomeOverlay.classList.remove("hidden");
-  await delay(2100);
+  await delay(10000);
   welcomeOverlay.classList.add("hidden");
 }
 
