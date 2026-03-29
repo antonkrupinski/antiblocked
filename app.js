@@ -47,6 +47,8 @@ const openTestModeBtn = document.getElementById("open-test-mode-btn");
 const chooseClassroomBtn = document.getElementById("choose-classroom-btn");
 const screensGrid = document.getElementById("screens-grid");
 const studentsList = document.getElementById("students-list");
+const settingsClassNameInput = document.getElementById("settings-class-name");
+const settingsClassTypeInput = document.getElementById("settings-class-type");
 const blockedDomainsInput = document.getElementById("blocked-domains");
 const blockedCategoriesSelect = document.getElementById("blocked-categories");
 const saveSettingsBtn = document.getElementById("save-settings-btn");
@@ -103,6 +105,7 @@ const screenModalTitle = document.getElementById("screen-modal-title");
 const screenModalTabs = document.getElementById("screen-modal-tabs");
 const tabsCount = document.getElementById("tabs-count");
 const closeScreenModal = document.getElementById("close-screen-modal");
+const settingsToggles = document.querySelectorAll("[data-settings-toggle]");
 
 const screensTabBtn = document.querySelector('[data-tab="screens"]');
 const studentsTabBtn = document.querySelector('[data-tab="students"]');
@@ -149,6 +152,15 @@ tabs.forEach((btn) => {
   btn.addEventListener("click", () => {
     if (btn.classList.contains("hidden")) return;
     activateTab(btn.dataset.tab);
+  });
+});
+
+settingsToggles.forEach((toggle) => {
+  toggle.addEventListener("click", () => {
+    const group = toggle.closest(".settings-group");
+    if (group) {
+      group.classList.toggle("collapsed");
+    }
   });
 });
 
@@ -1054,11 +1066,15 @@ function renderClassroomViews() {
 
   blockedDomainsInput.disabled = viewingAllClassrooms;
   blockedCategoriesSelect.disabled = viewingAllClassrooms;
+  settingsClassNameInput.disabled = viewingAllClassrooms;
+  settingsClassTypeInput.disabled = viewingAllClassrooms;
   saveSettingsBtn.disabled = viewingAllClassrooms;
   openTestModeBtn.disabled = viewingAllClassrooms || !classRefPath;
   openTestModeBtn.textContent = viewingAllClassrooms
     ? "Test Mode"
     : (settings.testModeEnabled ? "Test Mode On" : "Test Mode");
+  settingsClassNameInput.value = viewingAllClassrooms ? "" : (classroomData?.className || "");
+  settingsClassTypeInput.value = viewingAllClassrooms ? "Other" : (classroomData?.classType || "Other");
   blockedDomainsInput.value = viewingAllClassrooms ? "" : (settings.blockedDomains || []).join(", ");
   const selectedCategories = new Set(viewingAllClassrooms ? [] : settings.blockedCategories || []);
   Array.from(blockedCategoriesSelect.options).forEach((option) => {
@@ -1437,11 +1453,19 @@ async function pushControlCommand(type, extra = {}) {
 async function saveClassroomSettings() {
   if (!classRefPath || viewingAllClassrooms) return;
 
+  const className = settingsClassNameInput.value.trim();
+  const classType = settingsClassTypeInput.value || "Other";
   const domains = blockedDomainsInput.value
     .split(",")
     .map((d) => d.trim().toLowerCase())
     .filter(Boolean);
   const categories = Array.from(blockedCategoriesSelect.selectedOptions).map((option) => option.value);
+
+  await update(ref(db, classRefPath), {
+    className: className || classroomData?.className || "Class",
+    classType,
+    updatedAt: Date.now()
+  });
 
   await update(ref(db, `${classRefPath}/settings`), {
     blockedDomains: domains,

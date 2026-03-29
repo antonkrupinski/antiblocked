@@ -570,6 +570,46 @@ select:focus {
   margin-bottom: 12px;
 }
 
+.settings-group {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f8fafc;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.settings-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 0;
+  background: #eef4fb;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-chevron {
+  font-size: 18px;
+  transition: transform 0.18s ease;
+}
+
+.settings-group.collapsed .settings-chevron {
+  transform: rotate(-90deg);
+}
+
+.settings-panel {
+  padding: 14px 16px 4px;
+}
+
+.settings-group.collapsed .settings-panel {
+  display: none;
+}
+
 /* Modals */
 .modal {
   position: fixed;

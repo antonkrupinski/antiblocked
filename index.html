@@ -111,26 +111,54 @@
 
         <section id="settings-tab" class="tab">
           <div class="card">
-            <h3>Blocking Settings</h3>
-            <label>Blocked domains (comma-separated)</label>
-            <textarea id="blocked-domains" rows="3" placeholder="example.com, youtube.com"></textarea>
+            <h3>Settings</h3>
+            <div class="settings-group collapsed">
+              <button class="settings-toggle" type="button" data-settings-toggle="general">
+                <span>General</span>
+                <span class="settings-chevron">▾</span>
+              </button>
+              <div id="settings-general-panel" class="settings-panel">
+                <label>Classroom name</label>
+                <input id="settings-class-name" type="text" placeholder="Algebra 1 - Period 2">
 
-            <label>Blocked categories</label>
-            <select id="blocked-categories" class="category-dropdown" multiple size="10">
-              <option value="social">Social Media</option>
-              <option value="games">Games</option>
-              <option value="adult">Adult Content</option>
-              <option value="streaming">Streaming Video</option>
-              <option value="shopping">Shopping</option>
-              <option value="chat">Chat & Messaging</option>
-              <option value="news">News</option>
-              <option value="sports">Sports</option>
-              <option value="music">Music</option>
-              <option value="ai-tools">AI Tools</option>
-              <option value="vpn-proxy">VPN/Proxy</option>
-              <option value="gambling">Gambling</option>
-            </select>
-            <p class="form-help">Hold Cmd/Ctrl to select multiple categories.</p>
+                <label>Subject</label>
+                <select id="settings-class-type">
+                  <option value="Math">Math</option>
+                  <option value="Science">Science</option>
+                  <option value="English">English</option>
+                  <option value="History">History</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="settings-group collapsed">
+              <button class="settings-toggle" type="button" data-settings-toggle="blocking">
+                <span>Blocking</span>
+                <span class="settings-chevron">▾</span>
+              </button>
+              <div id="settings-blocking-panel" class="settings-panel">
+                <label>Blocked domains (comma-separated)</label>
+                <textarea id="blocked-domains" rows="3" placeholder="example.com, youtube.com"></textarea>
+
+                <label>Blocked categories</label>
+                <select id="blocked-categories" class="category-dropdown" multiple size="10">
+                  <option value="social">Social Media</option>
+                  <option value="games">Games</option>
+                  <option value="adult">Adult Content</option>
+                  <option value="streaming">Streaming Video</option>
+                  <option value="shopping">Shopping</option>
+                  <option value="chat">Chat & Messaging</option>
+                  <option value="news">News</option>
+                  <option value="sports">Sports</option>
+                  <option value="music">Music</option>
+                  <option value="ai-tools">AI Tools</option>
+                  <option value="vpn-proxy">VPN/Proxy</option>
+                  <option value="gambling">Gambling</option>
+                </select>
+                <p class="form-help">Hold Cmd/Ctrl to select multiple categories.</p>
+              </div>
+            </div>
 
             <button id="save-settings-btn" class="btn primary">Save settings</button>
           </div>
