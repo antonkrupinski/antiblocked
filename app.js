@@ -57,6 +57,10 @@ const districtList = document.getElementById("district-list");
 const districtClassrooms = document.getElementById("district-classrooms");
 const adminTabBtn = document.getElementById("admin-tab-btn");
 const districtScopeText = document.getElementById("district-scope");
+const adminDistrictCount = document.getElementById("admin-district-count");
+const adminPendingCount = document.getElementById("admin-pending-count");
+const adminTeacherCount = document.getElementById("admin-teacher-count");
+const adminClassroomCount = document.getElementById("admin-classroom-count");
 const openCreateDistrictBtn = document.getElementById("open-create-district-btn");
 const districtNameInput = document.getElementById("district-name-input");
 const districtJoinCodeInput = document.getElementById("district-join-code-input");
@@ -532,20 +536,24 @@ async function mountAdminPanel(profile) {
     renderPendingApprovals();
     renderDistrictClassrooms();
     renderDistrictCode();
+    renderAdminStats();
   });
 
   stopPendingWatcher = onValue(ref(db, "pendingTeachers"), (snapshot) => {
     pendingCache = snapshot.val() || {};
     renderPendingApprovals();
+    renderAdminStats();
   });
 
   stopAdminClassroomsWatcher = onValue(ref(db, "classrooms"), (snapshot) => {
     classroomsCache = snapshot.val() || {};
     renderDistrictClassrooms();
+    renderAdminStats();
   });
 
   stopUsersWatcher = onValue(ref(db, "users"), (snapshot) => {
     usersCache = snapshot.val() || {};
+    renderAdminStats();
   });
 
   setupModal.classList.add("hidden");
@@ -560,25 +568,55 @@ async function mountAdminPanel(profile) {
   }
 }
 
+function renderAdminStats() {
+  if (!adminDistrictCount || !adminPendingCount || !adminTeacherCount || !adminClassroomCount) return;
+
+  const districtEntries = Object.entries(districtsCache || {});
+  const pendingCount = Object.keys(pendingCache || {}).length;
+  const scopeDistrictId = adminContext
+    ? (adminContext.role === "super_admin" ? adminContext.activeDistrictId : adminContext.districtId)
+    : null;
+
+  const teacherCount = Object.values(usersCache || {}).filter((user) => {
+    if (!(user?.approved && user?.role === "teacher")) return false;
+    if (!scopeDistrictId) return true;
+    return user?.districtId === scopeDistrictId;
+  }).length;
+
+  const classroomCount = Object.values(classroomsCache || {}).filter((room) => {
+    if (!scopeDistrictId) return true;
+    return room?.districtId === scopeDistrictId;
+  }).length;
+
+  adminDistrictCount.textContent = String(districtEntries.length);
+  adminPendingCount.textContent = String(pendingCount);
+  adminTeacherCount.textContent = String(teacherCount);
+  adminClassroomCount.textContent = String(classroomCount);
+}
+
 function renderPendingApprovals() {
   pendingTeachers.innerHTML = "";
   if (!adminContext) return;
 
   const pendingList = Object.values(pendingCache || {});
   if (!pendingList.length) {
-    pendingTeachers.innerHTML = "<p>No pending users.</p>";
+    pendingTeachers.innerHTML = '<p class="admin-empty">No pending users.</p>';
     return;
   }
 
   pendingList.forEach((pendingUser) => {
     const row = document.createElement("div");
-    row.className = "student-row";
+    row.className = "admin-row";
 
     const left = document.createElement("div");
-    left.innerHTML = `<strong>${pendingUser.displayName || "Unknown"}</strong><br>${pendingUser.email}`;
+    left.className = "admin-row-main";
+    left.innerHTML = `
+      <div class="admin-row-title">${pendingUser.displayName || "Unknown"}</div>
+      <div class="admin-row-subtitle">${pendingUser.email || "No email"}</div>
+    `;
 
     const controls = document.createElement("div");
-    controls.className = "approval-controls";
+    controls.className = "approval-controls admin-row-actions";
 
     const districtSelect = document.createElement("select");
     districtSelect.className = "approve-select";
@@ -676,8 +714,9 @@ function renderDistrictList() {
     entries.push([adminContext.districtId, { name: adminContext.districtName }]);
   }
   if (!entries.length) {
-    districtList.innerHTML = "<p>No districts created yet.</p>";
+    districtList.innerHTML = '<p class="admin-empty">No districts created yet.</p>';
     districtScopeText.textContent = "Scope: no district selected";
+    renderAdminStats();
     return;
   }
 
@@ -687,11 +726,17 @@ function renderDistrictList() {
       if (adminContext.role !== "super_admin" && districtId !== adminContext.districtId) return;
 
       const row = document.createElement("div");
-      row.className = "student-row";
-      row.innerHTML = `<div><strong>${district.name}</strong><br><small>ID: ${districtId}</small></div>`;
+      row.className = "admin-row";
+
+      const left = document.createElement("div");
+      left.className = "admin-row-main";
+      left.innerHTML = `
+        <div class="admin-row-title">${district.name}</div>
+        <div class="admin-row-subtitle">ID: ${districtId}</div>
+      `;
 
       const controls = document.createElement("div");
-      controls.className = "approval-controls";
+      controls.className = "approval-controls admin-row-actions";
 
       const teachersBtn = document.createElement("button");
       teachersBtn.className = "btn";
@@ -724,6 +769,7 @@ function renderDistrictList() {
 
       controls.appendChild(teachersBtn);
       controls.appendChild(openBtn);
+      row.appendChild(left);
       row.appendChild(controls);
       districtList.appendChild(row);
     });
@@ -732,6 +778,7 @@ function renderDistrictList() {
   districtScopeText.textContent = scopeDistrict
     ? `Scope: ${scopeDistrict}`
     : "Scope: select a district";
+  renderAdminStats();
 }
 
 function openDistrictTeachers(districtId, districtName) {
@@ -743,14 +790,19 @@ function openDistrictTeachers(districtId, districtName) {
   districtTeachersList.innerHTML = "";
 
   if (!teachers.length) {
-    districtTeachersList.innerHTML = "<p>No approved teachers in this district.</p>";
+    districtTeachersList.innerHTML = '<p class="admin-empty">No approved teachers in this district.</p>';
   } else {
     teachers
       .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""))
       .forEach((teacher) => {
         const row = document.createElement("div");
-        row.className = "student-row";
-        row.innerHTML = `<div><strong>${teacher.displayName || "Unknown"}</strong><br>${teacher.email || "No email"}</div>`;
+        row.className = "admin-row";
+        row.innerHTML = `
+          <div class="admin-row-main">
+            <div class="admin-row-title">${teacher.displayName || "Unknown"}</div>
+            <div class="admin-row-subtitle">${teacher.email || "No email"}</div>
+          </div>
+        `;
         districtTeachersList.appendChild(row);
       });
   }
@@ -780,7 +832,8 @@ function renderDistrictClassrooms() {
 
   const scopeDistrictId = adminContext.role === "super_admin" ? adminContext.activeDistrictId : adminContext.districtId;
   if (!scopeDistrictId) {
-    districtClassrooms.innerHTML = "<p>Select a district to manage classrooms.</p>";
+    districtClassrooms.innerHTML = '<p class="admin-empty">Select a district to manage classrooms.</p>';
+    renderAdminStats();
     return;
   }
 
@@ -789,7 +842,8 @@ function renderDistrictClassrooms() {
   });
 
   if (!classrooms.length) {
-    districtClassrooms.innerHTML = "<p>No classrooms found for this scope.</p>";
+    districtClassrooms.innerHTML = '<p class="admin-empty">No classrooms found for this scope.</p>';
+    renderAdminStats();
     return;
   }
 
@@ -797,12 +851,13 @@ function renderDistrictClassrooms() {
     .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
     .forEach((room) => {
       const row = document.createElement("div");
-      row.className = "student-row";
+      row.className = "admin-row";
       const left = document.createElement("div");
+      left.className = "admin-row-main";
       left.innerHTML = `
-        <strong>${room.teacherName || "Unknown Teacher"}</strong><br>
-        ${room.classType || "Class"} · Code: ${room.classCode || "N/A"}<br>
-        <small>${room.districtName || "No district"}</small>
+        <div class="admin-row-title">${room.className || room.classType || "Class"}</div>
+        <div class="admin-row-subtitle">${room.teacherName || "Unknown Teacher"} · Code: ${room.classCode || "N/A"}</div>
+        <div class="admin-row-subtitle">${room.districtName || "No district"}</div>
       `;
       const openBtn = document.createElement("button");
       openBtn.className = "btn primary";
@@ -812,6 +867,8 @@ function renderDistrictClassrooms() {
       row.appendChild(openBtn);
       districtClassrooms.appendChild(row);
     });
+
+  renderAdminStats();
 }
 
 async function createDistrict() {

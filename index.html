@@ -165,36 +165,67 @@
         </section>
 
         <section id="admin-tab" class="tab">
-          <div class="card">
-            <div class="row-between">
-              <div>
-                <h3>Districts</h3>
-                <p>Super admin account: <strong>antonkrupinski0@gmail.com</strong></p>
+          <div class="admin-shell">
+            <div class="card admin-overview">
+              <div class="row-between">
+                <div>
+                  <h3>Super Admin Control Center</h3>
+                  <p>Signed in as <strong>antonkrupinski0@gmail.com</strong></p>
+                </div>
+                <button id="open-create-district-btn" class="class-plus-btn small" aria-label="Create district">+</button>
               </div>
-              <button id="open-create-district-btn" class="class-plus-btn small" aria-label="Create district">+</button>
+              <div class="admin-stats">
+                <div class="admin-stat">
+                  <span class="admin-stat-label">Districts</span>
+                  <strong id="admin-district-count">0</strong>
+                </div>
+                <div class="admin-stat">
+                  <span class="admin-stat-label">Pending approvals</span>
+                  <strong id="admin-pending-count">0</strong>
+                </div>
+                <div class="admin-stat">
+                  <span class="admin-stat-label">Teachers</span>
+                  <strong id="admin-teacher-count">0</strong>
+                </div>
+                <div class="admin-stat">
+                  <span class="admin-stat-label">Classrooms</span>
+                  <strong id="admin-classroom-count">0</strong>
+                </div>
+              </div>
+              <p id="district-scope" class="form-help"></p>
+              <div id="district-code-bar" class="managed-bar hidden">
+                <span id="district-code-label">District join code</span>
+                <button id="copy-district-code-btn" class="btn">Copy code</button>
+                <button id="regenerate-district-code-btn" class="btn">Regenerate</button>
+              </div>
+              <div id="managed-classroom-bar" class="managed-bar hidden">
+                <span id="managed-classroom-label">Managing classroom</span>
+                <button id="close-managed-classroom-btn" class="btn">Close classroom</button>
+              </div>
             </div>
-            <p id="district-scope" class="form-help"></p>
-            <h4>Districts</h4>
-            <div id="district-list"></div>
-            <div id="district-code-bar" class="managed-bar hidden">
-              <span id="district-code-label">District join code</span>
-              <button id="copy-district-code-btn" class="btn">Copy code</button>
-              <button id="regenerate-district-code-btn" class="btn">Regenerate</button>
+
+            <div class="admin-grid">
+              <div class="card admin-panel-card">
+                <div class="admin-panel-head">
+                  <h3>Districts</h3>
+                </div>
+                <div id="district-list" class="admin-list"></div>
+              </div>
+
+              <div class="card admin-panel-card">
+                <div class="admin-panel-head">
+                  <h3>Pending Teacher Approvals</h3>
+                </div>
+                <div id="pending-teachers" class="admin-list"></div>
+              </div>
+
+              <div class="card admin-panel-card admin-panel-wide">
+                <div class="admin-panel-head">
+                  <h3>District Classrooms</h3>
+                </div>
+                <div id="district-classrooms" class="admin-list"></div>
+              </div>
             </div>
-            <div id="managed-classroom-bar" class="managed-bar hidden">
-              <span id="managed-classroom-label">Managing classroom</span>
-              <button id="close-managed-classroom-btn" class="btn">Close classroom</button>
-            </div>
-          </div>
-          <div class="card">
-            <h3>Teacher Approvals</h3>
-            <h4>Pending Approvals</h4>
-            <div id="pending-teachers"></div>
-          </div>
-          <div class="card">
-            <h3>District Classrooms</h3>
-            <h4>District Classrooms</h4>
-            <div id="district-classrooms"></div>
           </div>
         </section>
       </section>
