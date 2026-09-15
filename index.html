@@ -11,14 +11,24 @@
 </head>
 <body>
   <div id="auth-view" class="auth-shell">
-    <div class="auth-orb auth-orb-a"></div>
-    <div class="auth-orb auth-orb-b"></div>
-    <div class="center-card">
-      <p class="eyebrow">AntiBlocked Classroom</p>
-      <h1>See every student screen in one control panel</h1>
-      <p class="lead">Sign in with Google to continue with teacher or admin access.</p>
-      <button id="google-login-btn" class="btn primary wide">Sign in with Google</button>
-      <p id="auth-status"></p>
+    <div class="auth-container">
+      <section class="auth-copy">
+        <p class="eyebrow">AntiBlocked Classroom</p>
+        <h1>Classroom monitoring, organized in one professional dashboard</h1>
+        <p class="lead">Manage student screens, policies, and approvals from a single secure control center.</p>
+        <ul class="auth-points">
+          <li>Live screen visibility</li>
+          <li>District and classroom management</li>
+          <li>Centralized policy controls</li>
+        </ul>
+      </section>
+
+      <section class="auth-card" aria-label="Sign in">
+        <h2>Sign in</h2>
+        <p class="auth-card-subtitle">Use your Google account to continue as a teacher or admin.</p>
+        <button id="google-login-btn" class="btn primary wide">Continue with Google</button>
+        <p id="auth-status"></p>
+      </section>
     </div>
   </div>
 
