@@ -734,10 +734,11 @@ function normalizeAllowlistDomainEntry(value) {
 
   try {
     const parsed = raw.includes("://") ? new URL(raw) : new URL(`https://${raw}`);
-    return parsed.hostname.toLowerCase().replace(/^\*\./, "").replace(/^\./, "");
+    return parsed.hostname.toLowerCase().replace(/^www\./, "").replace(/^\*\./, "").replace(/^\./, "");
   } catch {
     return raw
       .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
       .replace(/^\*\./, "")
       .replace(/^\./, "")
       .split(/[/?#]/)[0]
