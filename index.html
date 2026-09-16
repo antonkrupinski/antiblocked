@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260915e">
+  <link rel="stylesheet" href="./styles.css?v=20260916a">
 </head>
 <body>
   <div id="auth-view" class="auth-shell">
@@ -79,6 +79,7 @@
         <button data-tab="students" class="tab-btn">Students</button>
         <button data-tab="settings" class="tab-btn">Settings</button>
         <button data-tab="admin" class="tab-btn hidden" id="admin-tab-btn">Admin</button>
+        <button data-tab="logs" class="tab-btn hidden" id="logs-tab-btn">Logs</button>
       </aside>
 
       <section class="content">
@@ -277,6 +278,18 @@
             </div>
           </div>
         </section>
+
+        <section id="logs-tab" class="tab">
+          <div class="card">
+            <div class="row-between">
+              <div>
+                <h3>District Logs</h3>
+                <p class="form-help">Teacher domain block/unblock actions are recorded here.</p>
+              </div>
+            </div>
+            <div id="district-logs-list" class="admin-list"></div>
+          </div>
+        </section>
       </section>
     </main>
   </div>
@@ -404,6 +417,6 @@
     </div>
   </div>
 
-  <script type="module" src="./app.js?v=20260915e"></script>
+  <script type="module" src="./app.js?v=20260916a"></script>
 </body>
 </html>

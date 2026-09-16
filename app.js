@@ -62,6 +62,8 @@ const districtAllowlistLinksWrap = document.getElementById("district-allowlist-l
 const districtAllowedLinksInput = document.getElementById("district-allowed-links");
 const saveDistrictSettingsBtn = document.getElementById("save-district-settings-btn");
 const adminTabBtn = document.getElementById("admin-tab-btn");
+const logsTabBtn = document.getElementById("logs-tab-btn");
+const districtLogsList = document.getElementById("district-logs-list");
 const districtScopeText = document.getElementById("district-scope");
 const adminDistrictCount = document.getElementById("admin-district-count");
 const adminPendingCount = document.getElementById("admin-pending-count");
@@ -128,6 +130,7 @@ const screensTab = document.getElementById("screens-tab");
 const studentsTab = document.getElementById("students-tab");
 const settingsTab = document.getElementById("settings-tab");
 const adminTab = document.getElementById("admin-tab");
+const logsTab = document.getElementById("logs-tab");
 const appLayout = document.querySelector(".layout");
 
 let currentUser = null;
@@ -153,6 +156,7 @@ let stopPendingStudentsWatcher = null;
 let stopTeacherClassesWatcher = null;
 let stopTeacherDistrictWatcher = null;
 let stopUsersWatcher = null;
+let stopDistrictLogsWatcher = null;
 let lastApprovedState = false;
 let teacherHeartbeatTimer = null;
 let activeTeacherClassId = null;
@@ -160,6 +164,7 @@ let viewingAllClassrooms = false;
 let allClassroomSelection = new Set();
 let lastWelcomeEmail = "";
 let showingStudentHistory = false;
+let districtLogsCache = {};
 
 const tabs = document.querySelectorAll(".tab-btn");
 
@@ -490,11 +495,13 @@ function setRoleUI(role) {
   resetMainPanels();
   const showTeacherTabs = role === "teacher" || role === "admin_manage";
   const showAdminTab = role === "admin" || role === "admin_manage";
+  const showLogsTab = role === "admin" || role === "admin_manage";
 
   screensTabBtn.classList.toggle("hidden", !showTeacherTabs);
   studentsTabBtn.classList.toggle("hidden", !showTeacherTabs);
   settingsTabBtn.classList.toggle("hidden", !showTeacherTabs);
   adminTabBtn.classList.toggle("hidden", !showAdminTab);
+  logsTabBtn.classList.toggle("hidden", !showLogsTab);
   forceSectionVisibility(role);
 
   if (role === "teacher" || role === "admin_manage") {
@@ -518,10 +525,12 @@ function resetMainPanels() {
   studentsTab.classList.add("hidden");
   settingsTab.classList.add("hidden");
   adminTab.classList.add("hidden");
+  logsTab.classList.add("hidden");
   screensTabBtn.classList.add("hidden");
   studentsTabBtn.classList.add("hidden");
   settingsTabBtn.classList.add("hidden");
   adminTabBtn.classList.add("hidden");
+  logsTabBtn.classList.add("hidden");
   document.querySelectorAll(".tab-btn").forEach((btn) => btn.classList.remove("active"));
   document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
 }
@@ -529,12 +538,14 @@ function resetMainPanels() {
 function forceSectionVisibility(role) {
   const showTeacher = role === "teacher" || role === "admin_manage";
   const showAdmin = role === "admin" || role === "admin_manage";
+  const showLogs = role === "admin" || role === "admin_manage";
   const showPending = role === "pending";
 
   screensTab.classList.toggle("hidden", !showTeacher);
   studentsTab.classList.toggle("hidden", !showTeacher);
   settingsTab.classList.toggle("hidden", !showTeacher);
   adminTab.classList.toggle("hidden", !showAdmin);
+  logsTab.classList.toggle("hidden", !showLogs);
   pendingView.classList.toggle("hidden", !showPending);
 }
 
@@ -559,6 +570,7 @@ async function showSuperAdminPanel() {
   classCreateModal.classList.add("hidden");
   addStudentsModal.classList.add("hidden");
   adminTabBtn.classList.remove("hidden");
+  logsTabBtn.classList.remove("hidden");
   activateTab("admin");
   await mountAdminPanel({ role: "super_admin", districtId: null, districtName: "All districts" });
 }
@@ -589,6 +601,7 @@ async function mountAdminPanel(profile) {
     renderDistrictCode();
     renderAdminStats();
     renderDistrictSettingsPanel();
+    watchDistrictLogs();
   });
 
   stopPendingWatcher = onValue(ref(db, "pendingTeachers"), (snapshot) => {
@@ -642,6 +655,51 @@ function renderAdminStats() {
   adminPendingCount.textContent = String(pendingCount);
   adminTeacherCount.textContent = String(teacherCount);
   adminClassroomCount.textContent = String(classroomCount);
+}
+
+function watchDistrictLogs() {
+  const scopeDistrictId = getAdminScopeDistrictId();
+  if (stopDistrictLogsWatcher) {
+    stopDistrictLogsWatcher();
+    stopDistrictLogsWatcher = null;
+  }
+
+  if (!scopeDistrictId) {
+    districtLogsCache = {};
+    renderDistrictLogs();
+    return;
+  }
+
+  stopDistrictLogsWatcher = onValue(ref(db, `districtLogs/${scopeDistrictId}`), (snapshot) => {
+    districtLogsCache = snapshot.val() || {};
+    renderDistrictLogs();
+  });
+}
+
+function renderDistrictLogs() {
+  if (!districtLogsList) return;
+  districtLogsList.innerHTML = "";
+
+  const entries = Object.values(districtLogsCache || {}).sort((a, b) => (b?.createdAt || 0) - (a?.createdAt || 0));
+  if (!entries.length) {
+    districtLogsList.innerHTML = '<p class="admin-empty">No logs yet.</p>';
+    return;
+  }
+
+  entries.slice(0, 300).forEach((entry) => {
+    const row = document.createElement("div");
+    row.className = "admin-row";
+    const action = entry?.action === "unblock_domain" ? "Unblocked" : "Blocked";
+    const when = entry?.createdAt ? new Date(entry.createdAt).toLocaleString() : "Unknown time";
+    row.innerHTML = `
+      <div class="admin-row-main">
+        <div class="admin-row-title">${action}: ${entry?.domain || "unknown-domain"}</div>
+        <div class="admin-row-subtitle">Teacher: ${entry?.teacherName || "Unknown"} (${entry?.teacherEmail || "no-email"})</div>
+        <div class="admin-row-subtitle">Class: ${entry?.className || "Class"} · ${when}</div>
+      </div>
+    `;
+    districtLogsList.appendChild(row);
+  });
 }
 
 function getAdminScopeDistrictId() {
@@ -953,6 +1011,7 @@ function renderDistrictList() {
         renderPendingApprovals();
         renderDistrictCode();
         renderDistrictSettingsPanel();
+        watchDistrictLogs();
       });
 
       controls.appendChild(teachersBtn);
@@ -1709,8 +1768,25 @@ function renderStudentTabsPanel(student) {
     url.className = "tab-url";
     url.textContent = tab.url || "";
 
+    const domain = getDomainFromUrl(tab.url || "");
+    const blocked = isDomainBlockedForClass(domain, selectedStudentContext?.classId);
+
+    const actionsCol = document.createElement("div");
+    actionsCol.className = "tab-actions-col";
+
+    const blockToggleBtn = document.createElement("button");
+    blockToggleBtn.className = `tab-action-btn ${blocked ? "unblock" : "block"}`;
+    blockToggleBtn.type = "button";
+    blockToggleBtn.textContent = blocked ? "Unblock" : "Block";
+    blockToggleBtn.disabled = !domain;
+    blockToggleBtn.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      if (!domain) return;
+      await toggleDomainBlock(domain, selectedStudentContext?.classId);
+    });
+
     const closeBtn = document.createElement("button");
-    closeBtn.className = "tab-close";
+    closeBtn.className = "tab-action-btn";
     closeBtn.type = "button";
     closeBtn.textContent = "X";
     closeBtn.addEventListener("click", (event) => {
@@ -1728,7 +1804,9 @@ function renderStudentTabsPanel(student) {
 
     row.appendChild(title);
     row.appendChild(url);
-    row.appendChild(closeBtn);
+    actionsCol.appendChild(blockToggleBtn);
+    actionsCol.appendChild(closeBtn);
+    row.appendChild(actionsCol);
     screenModalTabs.appendChild(row);
   });
 }
@@ -1794,6 +1872,100 @@ function renderStudentHistoryPanel(student) {
     row.appendChild(eventBadge);
     screenModalTabs.appendChild(row);
   });
+}
+
+function getDomainFromUrl(url) {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+function getClassroomById(classId) {
+  if (!classId) return null;
+  if (!viewingAllClassrooms && classroomData?.classId === classId) return classroomData;
+  return teacherClassesCache.find((room) => room.classId === classId) || null;
+}
+
+function isDomainBlockedForClass(domain, classId) {
+  if (!domain || !classId) return false;
+  const room = getClassroomById(classId);
+  const blocked = Array.isArray(room?.settings?.blockedDomains) ? room.settings.blockedDomains : [];
+  return blocked.some((entry) => domain === entry || domain.endsWith(`.${entry}`) || entry.endsWith(`.${domain}`));
+}
+
+async function writeDistrictLog(action, payload = {}) {
+  const districtId = userProfile?.districtId || adminContext?.districtId || adminContext?.activeDistrictId;
+  if (!districtId) return;
+
+  await push(ref(db, `districtLogs/${districtId}`), {
+    action,
+    createdAt: Date.now(),
+    teacherUid: currentUser?.uid || "",
+    teacherEmail: currentUser?.email || "",
+    teacherName: userProfile?.displayName || currentUser?.displayName || "Teacher",
+    districtId,
+    districtName: userProfile?.districtName || adminContext?.districtName || "",
+    ...payload
+  });
+}
+
+async function toggleDomainBlock(domain, classId) {
+  if (!domain || !classId) return;
+
+  const room = getClassroomById(classId);
+  const roomSettings = room?.settings || {};
+  const currentDomains = Array.isArray(roomSettings.blockedDomains)
+    ? roomSettings.blockedDomains.map((d) => String(d || "").trim().toLowerCase()).filter(Boolean)
+    : [];
+
+  const currentlyBlocked = currentDomains.includes(domain);
+  const nextDomains = currentlyBlocked
+    ? currentDomains.filter((d) => d !== domain)
+    : Array.from(new Set([...currentDomains, domain]));
+
+  await update(ref(db, `classrooms/${classId}/settings`), {
+    blockedDomains: nextDomains,
+    updatedAt: Date.now(),
+    updatedBy: currentUser?.uid || null
+  });
+
+  if (userProfile?.role === "teacher" && userProfile?.districtId) {
+    const districtSettingsSnap = await get(ref(db, `districts/${userProfile.districtId}/settings`));
+    const districtSettings = districtSettingsSnap.val() || {};
+    const districtDomains = Array.isArray(districtSettings.blockedDomains)
+      ? districtSettings.blockedDomains.map((d) => String(d || "").trim().toLowerCase()).filter(Boolean)
+      : [];
+    const mergedDomains = currentlyBlocked
+      ? districtDomains.filter((d) => d !== domain)
+      : Array.from(new Set([...districtDomains, domain]));
+
+    await update(ref(db, `districts/${userProfile.districtId}/settings`), {
+      blockedDomains: mergedDomains,
+      updatedAt: Date.now(),
+      updatedBy: currentUser?.uid || null
+    });
+
+    await propagateDistrictSettingsToClassrooms(userProfile.districtId, {
+      blockedDomains: mergedDomains,
+      blockedCategories: Array.isArray(districtSettings.blockedCategories)
+        ? districtSettings.blockedCategories
+        : []
+    });
+
+    if (currentlyBlocked) {
+      await writeDistrictLog("unblock_domain", {
+        domain,
+        classId,
+        className: room?.className || room?.classType || "Class"
+      });
+    }
+  }
+
+  statusBanner.textContent = currentlyBlocked
+    ? `Unblocked ${domain}`
+    : `Blocked ${domain}`;
 }
 
 async function pushControlCommand(type, extra = {}) {
@@ -1932,6 +2104,10 @@ function cleanupAdminWatchers() {
   if (stopUsersWatcher) {
     stopUsersWatcher();
     stopUsersWatcher = null;
+  }
+  if (stopDistrictLogsWatcher) {
+    stopDistrictLogsWatcher();
+    stopDistrictLogsWatcher = null;
   }
 }
 
