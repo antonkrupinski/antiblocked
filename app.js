@@ -58,6 +58,8 @@ const districtClassrooms = document.getElementById("district-classrooms");
 const districtBlockedDomainsInput = document.getElementById("district-blocked-domains");
 const districtBlockedCategoriesSelect = document.getElementById("district-blocked-categories");
 const districtAllowlistToggle = document.getElementById("district-allowlist-toggle");
+const districtBlockGoogleLoginToggle = document.getElementById("district-block-google-login-toggle");
+const districtBlockMicrosoftLoginToggle = document.getElementById("district-block-microsoft-login-toggle");
 const districtAllowlistLinksWrap = document.getElementById("district-allowlist-links-wrap");
 const districtAllowedLinksInput = document.getElementById("district-allowed-links");
 const saveDistrictSettingsBtn = document.getElementById("save-district-settings-btn");
@@ -724,6 +726,8 @@ function normalizeDistrictSettings(settings = {}) {
     blockedDomains,
     blockedCategories,
     strictAllowlistEnabled: Boolean(settings.strictAllowlistEnabled),
+    blockGoogleLoginMethods: Boolean(settings.blockGoogleLoginMethods),
+    blockMicrosoftLoginMethods: Boolean(settings.blockMicrosoftLoginMethods),
     allowedLinks
   };
 }
@@ -750,6 +754,8 @@ function setDistrictSettingsControlsDisabled(disabled) {
   districtBlockedDomainsInput.disabled = disabled;
   districtBlockedCategoriesSelect.disabled = disabled;
   districtAllowlistToggle.disabled = disabled;
+  districtBlockGoogleLoginToggle.disabled = disabled;
+  districtBlockMicrosoftLoginToggle.disabled = disabled;
   districtAllowedLinksInput.disabled = disabled;
   saveDistrictSettingsBtn.disabled = disabled;
 }
@@ -760,6 +766,8 @@ function renderDistrictSettingsPanel() {
     districtBlockedDomainsInput.value = "";
     districtAllowedLinksInput.value = "";
     districtAllowlistToggle.checked = false;
+    districtBlockGoogleLoginToggle.checked = false;
+    districtBlockMicrosoftLoginToggle.checked = false;
     districtAllowlistLinksWrap.classList.add("hidden");
     Array.from(districtBlockedCategoriesSelect.options).forEach((option) => {
       option.selected = false;
@@ -773,6 +781,8 @@ function renderDistrictSettingsPanel() {
   districtBlockedDomainsInput.value = settings.blockedDomains.join(", ");
   districtAllowedLinksInput.value = settings.allowedLinks.join("\n");
   districtAllowlistToggle.checked = settings.strictAllowlistEnabled;
+  districtBlockGoogleLoginToggle.checked = settings.blockGoogleLoginMethods;
+  districtBlockMicrosoftLoginToggle.checked = settings.blockMicrosoftLoginMethods;
   districtAllowlistLinksWrap.classList.toggle("hidden", !settings.strictAllowlistEnabled);
 
   const selectedCategories = new Set(settings.blockedCategories);
@@ -794,6 +804,8 @@ async function saveDistrictGlobalSettings() {
     .filter(Boolean);
   const blockedCategories = Array.from(districtBlockedCategoriesSelect.selectedOptions).map((option) => option.value);
   const strictAllowlistEnabled = Boolean(districtAllowlistToggle.checked);
+  const blockGoogleLoginMethods = Boolean(districtBlockGoogleLoginToggle.checked);
+  const blockMicrosoftLoginMethods = Boolean(districtBlockMicrosoftLoginToggle.checked);
   const allowedLinks = Array.from(new Set(districtAllowedLinksInput.value
     .split(/[,\n]/)
     .map((link) => normalizeAllowlistDomainEntry(link))
@@ -803,6 +815,8 @@ async function saveDistrictGlobalSettings() {
     blockedDomains,
     blockedCategories,
     strictAllowlistEnabled,
+    blockGoogleLoginMethods,
+    blockMicrosoftLoginMethods,
     allowedLinks,
     updatedAt: Date.now(),
     updatedBy: currentUser?.uid || null

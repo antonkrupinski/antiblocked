@@ -287,6 +287,18 @@
                 </div>
                 <p class="form-help">When enabled, only approved links + core Google services are allowed. Google search remains allowed, and AI Overview will be blocked.</p>
 
+                <div class="district-toggle-row">
+                  <label for="district-block-google-login-toggle" class="district-toggle-label">Block Google login methods</label>
+                  <input id="district-block-google-login-toggle" type="checkbox" class="district-toggle-input">
+                </div>
+                <p class="form-help">Blocks common “Sign in with Google” login flows for students.</p>
+
+                <div class="district-toggle-row">
+                  <label for="district-block-microsoft-login-toggle" class="district-toggle-label">Block Microsoft login methods</label>
+                  <input id="district-block-microsoft-login-toggle" type="checkbox" class="district-toggle-input">
+                </div>
+                <p class="form-help">Microsoft school/student sign-in stays allowed.</p>
+
                 <div id="district-allowlist-links-wrap" class="hidden">
                   <label>Allowed links (one per line or comma-separated)</label>
                   <textarea id="district-allowed-links" rows="5" placeholder="khanacademy.org&#10;schoology.com&#10;docs.google.com"></textarea>
