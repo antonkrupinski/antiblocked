@@ -7,27 +7,45 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260916a">
+  <link rel="stylesheet" href="./styles.css?v=20260916b">
 </head>
 <body>
   <div id="auth-view" class="auth-shell">
+    <div class="auth-brand">
+      <span class="auth-brand-mark"></span>
+      <span class="auth-brand-text">AntiBlocked</span>
+    </div>
+
     <div class="auth-container">
       <section class="auth-copy">
-        <p class="eyebrow">AntiBlocked Classroom</p>
-        <h1>Classroom monitoring, organized in one professional dashboard</h1>
-        <p class="lead">Manage student screens, policies, and approvals from a single secure control center.</p>
-        <ul class="auth-points">
-          <li>Live screen visibility</li>
-          <li>District and classroom management</li>
-          <li>Centralized policy controls</li>
-        </ul>
+        <div class="auth-login-card" aria-label="Sign in panel">
+          <h1>Welcome to AntiBlocked</h1>
+
+          <button id="google-login-btn" class="auth-provider-btn auth-google-btn" type="button">
+            <span>G</span>
+            <span>Log in with Google</span>
+          </button>
+
+          <div class="auth-divider"><span>OR</span></div>
+
+          <input class="auth-email-input" type="email" placeholder="Enter your email address" aria-label="Email address">
+          <button class="auth-email-btn" type="button" disabled>Continue with email</button>
+
+          <p id="auth-status"></p>
+
+          <p class="auth-signup-note">Don’t have an account? <a href="#" onclick="return false;">Sign up</a></p>
+        </div>
+
+        <p class="auth-terms">Terms of Service and Privacy Policy.</p>
       </section>
 
-      <section class="auth-card" aria-label="Sign in">
-        <h2>Sign in</h2>
-        <p class="auth-card-subtitle">Use your Google account to continue as a teacher or admin.</p>
-        <button id="google-login-btn" class="btn primary wide">Continue with Google</button>
-        <p id="auth-status"></p>
+      <section class="auth-card" aria-hidden="true">
+        <div class="auth-art auth-art-top"></div>
+        <div class="auth-art auth-art-grid">
+          <p>72%<br><span>Account Health</span></p>
+        </div>
+        <h2>Turn your ideas into safe classrooms<span class="dot">.</span></h2>
+        <div class="auth-art auth-art-bottom"></div>
       </section>
     </div>
   </div>
@@ -417,6 +435,6 @@
     </div>
   </div>
 
-  <script type="module" src="./app.js?v=20260916a"></script>
+  <script type="module" src="./app.js?v=20260916b"></script>
 </body>
 </html>

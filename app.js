@@ -1782,17 +1782,22 @@ function renderStudentTabsPanel(student) {
     blockToggleBtn.addEventListener("click", async (event) => {
       event.stopPropagation();
       if (!domain) return;
-      await toggleDomainBlock(domain, selectedStudentContext?.classId);
+      await toggleDomainBlock(domain, selectedStudentContext?.classId, {
+        source: "tabs",
+        tabId: typeof tab.id === "number" ? tab.id : null
+      });
     });
 
     const closeBtn = document.createElement("button");
     closeBtn.className = "tab-action-btn";
     closeBtn.type = "button";
     closeBtn.textContent = "X";
-    closeBtn.addEventListener("click", (event) => {
+    closeBtn.addEventListener("click", async (event) => {
       event.stopPropagation();
       if (typeof tab.id === "number") {
-        pushControlCommand("CLOSE_TAB", { tabId: tab.id });
+        row.style.opacity = "0.55";
+        statusBanner.textContent = `Closing tab: ${tab.title || "Untitled"}`;
+        await pushControlCommand("CLOSE_TAB", { tabId: tab.id });
       }
     });
 
@@ -1862,6 +1867,26 @@ function renderStudentHistoryPanel(student) {
     url.className = "tab-url";
     url.textContent = entry.url || "";
 
+    const domain = getDomainFromUrl(entry.url || "");
+    const blocked = isDomainBlockedForClass(domain, selectedStudentContext?.classId);
+
+    const actionsCol = document.createElement("div");
+    actionsCol.className = "tab-actions-col";
+
+    const blockToggleBtn = document.createElement("button");
+    blockToggleBtn.className = `tab-action-btn ${blocked ? "unblock" : "block"}`;
+    blockToggleBtn.type = "button";
+    blockToggleBtn.textContent = blocked ? "Unblock" : "Block";
+    blockToggleBtn.disabled = !domain;
+    blockToggleBtn.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      if (!domain) return;
+      await toggleDomainBlock(domain, selectedStudentContext?.classId, {
+        source: "history",
+        tabId: null
+      });
+    });
+
     const eventBadge = document.createElement("span");
     eventBadge.className = `tab-event ${eventType === "deleted" ? "deleted" : "visited"}`;
     const time = entry?.at ? new Date(entry.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
@@ -1869,7 +1894,9 @@ function renderStudentHistoryPanel(student) {
 
     row.appendChild(title);
     row.appendChild(url);
-    row.appendChild(eventBadge);
+    actionsCol.appendChild(eventBadge);
+    actionsCol.appendChild(blockToggleBtn);
+    row.appendChild(actionsCol);
     screenModalTabs.appendChild(row);
   });
 }
@@ -1884,7 +1911,7 @@ function getDomainFromUrl(url) {
 
 function getClassroomById(classId) {
   if (!classId) return null;
-  if (!viewingAllClassrooms && classroomData?.classId === classId) return classroomData;
+  if (!viewingAllClassrooms && activeTeacherClassId === classId && classroomData) return classroomData;
   return teacherClassesCache.find((room) => room.classId === classId) || null;
 }
 
@@ -1911,7 +1938,7 @@ async function writeDistrictLog(action, payload = {}) {
   });
 }
 
-async function toggleDomainBlock(domain, classId) {
+async function toggleDomainBlock(domain, classId, options = {}) {
   if (!domain || !classId) return;
 
   const room = getClassroomById(classId);
@@ -1925,14 +1952,19 @@ async function toggleDomainBlock(domain, classId) {
     ? currentDomains.filter((d) => d !== domain)
     : Array.from(new Set([...currentDomains, domain]));
 
+  statusBanner.textContent = currentlyBlocked
+    ? `Unblocking ${domain}...`
+    : `Blocking ${domain}...`;
+
   await update(ref(db, `classrooms/${classId}/settings`), {
     blockedDomains: nextDomains,
     updatedAt: Date.now(),
     updatedBy: currentUser?.uid || null
   });
 
-  if (userProfile?.role === "teacher" && userProfile?.districtId) {
-    const districtSettingsSnap = await get(ref(db, `districts/${userProfile.districtId}/settings`));
+  const districtId = userProfile?.districtId || adminContext?.districtId || adminContext?.activeDistrictId || null;
+  if (districtId) {
+    const districtSettingsSnap = await get(ref(db, `districts/${districtId}/settings`));
     const districtSettings = districtSettingsSnap.val() || {};
     const districtDomains = Array.isArray(districtSettings.blockedDomains)
       ? districtSettings.blockedDomains.map((d) => String(d || "").trim().toLowerCase()).filter(Boolean)
@@ -1941,13 +1973,13 @@ async function toggleDomainBlock(domain, classId) {
       ? districtDomains.filter((d) => d !== domain)
       : Array.from(new Set([...districtDomains, domain]));
 
-    await update(ref(db, `districts/${userProfile.districtId}/settings`), {
+    await update(ref(db, `districts/${districtId}/settings`), {
       blockedDomains: mergedDomains,
       updatedAt: Date.now(),
       updatedBy: currentUser?.uid || null
     });
 
-    await propagateDistrictSettingsToClassrooms(userProfile.districtId, {
+    await propagateDistrictSettingsToClassrooms(districtId, {
       blockedDomains: mergedDomains,
       blockedCategories: Array.isArray(districtSettings.blockedCategories)
         ? districtSettings.blockedCategories
@@ -1958,14 +1990,28 @@ async function toggleDomainBlock(domain, classId) {
       await writeDistrictLog("unblock_domain", {
         domain,
         classId,
-        className: room?.className || room?.classType || "Class"
+        className: room?.className || room?.classType || "Class",
+        source: options.source || "tabs"
+      });
+    } else {
+      await writeDistrictLog("block_domain", {
+        domain,
+        classId,
+        className: room?.className || room?.classType || "Class",
+        source: options.source || "tabs"
       });
     }
+  }
+
+  if (!currentlyBlocked && options?.tabId && typeof options.tabId === "number") {
+    await pushControlCommand("CLOSE_TAB", { tabId: options.tabId });
   }
 
   statusBanner.textContent = currentlyBlocked
     ? `Unblocked ${domain}`
     : `Blocked ${domain}`;
+
+  rerenderFocusedStudentModalPanel();
 }
 
 async function pushControlCommand(type, extra = {}) {
