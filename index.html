@@ -171,6 +171,10 @@
                 <label>Blocked domains (comma-separated)</label>
                 <textarea id="blocked-domains" rows="3" placeholder="example.com, youtube.com"></textarea>
 
+                <label>Always unblocked links (one per line or comma-separated)</label>
+                <textarea id="always-allowed-links" rows="4" placeholder="instructure.com&#10;ixl.com&#10;login.microsoftonline.com"></textarea>
+                <p class="form-help">These links (and their subdomains/sublinks) stay unblocked.</p>
+
                 <label>Blocked categories</label>
                 <select id="blocked-categories" class="category-dropdown" multiple size="10">
                   <option value="social">Social Media</option>
@@ -299,8 +303,8 @@
                 </div>
                 <p class="form-help">Microsoft school/student sign-in stays allowed.</p>
 
-                <div id="district-allowlist-links-wrap" class="hidden">
-                  <label>Allowed links (one per line or comma-separated)</label>
+                <div id="district-allowlist-links-wrap">
+                  <label>Always unblocked links (one per line or comma-separated)</label>
                   <textarea id="district-allowed-links" rows="5" placeholder="khanacademy.org&#10;schoology.com&#10;docs.google.com"></textarea>
                 </div>
 

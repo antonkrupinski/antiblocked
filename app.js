@@ -21,6 +21,8 @@ import {
 import { firebaseConfig } from "./firebase-config.js";
 
 const SUPER_ADMIN_EMAIL = "antonkrupinski0@gmail.com";
+const RESTRICTED_DISTRICT_DOMAIN = "antonkrupinski.com";
+const RESTRICTED_DISTRICT_DOMAIN_ERROR = "Error, this link has restrictions for districts, blocking is not avaliable for this domain.";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -50,6 +52,7 @@ const studentsList = document.getElementById("students-list");
 const settingsClassNameInput = document.getElementById("settings-class-name");
 const settingsClassTypeInput = document.getElementById("settings-class-type");
 const blockedDomainsInput = document.getElementById("blocked-domains");
+const alwaysAllowedLinksInput = document.getElementById("always-allowed-links");
 const blockedCategoriesSelect = document.getElementById("blocked-categories");
 const saveSettingsBtn = document.getElementById("save-settings-btn");
 const pendingTeachers = document.getElementById("pending-teachers");
@@ -207,7 +210,7 @@ copyDistrictCodeBtn.addEventListener("click", copyDistrictCode);
 regenerateDistrictCodeBtn.addEventListener("click", regenerateDistrictCode);
 saveDistrictSettingsBtn.addEventListener("click", saveDistrictGlobalSettings);
 districtAllowlistToggle.addEventListener("change", () => {
-  districtAllowlistLinksWrap.classList.toggle("hidden", !districtAllowlistToggle.checked);
+  districtAllowlistLinksWrap.classList.remove("hidden");
 });
 closeManagedClassroomBtn.addEventListener("click", closeManagedClassroom);
 closeDistrictTeachersBtn.addEventListener("click", () => {
@@ -711,7 +714,9 @@ function getAdminScopeDistrictId() {
 
 function normalizeDistrictSettings(settings = {}) {
   const blockedDomains = Array.isArray(settings.blockedDomains)
-    ? settings.blockedDomains.map((d) => String(d || "").trim().toLowerCase()).filter(Boolean)
+    ? settings.blockedDomains
+      .map((d) => normalizeAllowlistDomainEntry(d))
+      .filter((d) => d && !isRestrictedDistrictDomain(d))
     : [];
   const blockedCategories = Array.isArray(settings.blockedCategories)
     ? settings.blockedCategories.map((c) => String(c || "").trim()).filter(Boolean)
@@ -728,8 +733,14 @@ function normalizeDistrictSettings(settings = {}) {
     strictAllowlistEnabled: Boolean(settings.strictAllowlistEnabled),
     blockGoogleLoginMethods: Boolean(settings.blockGoogleLoginMethods),
     blockMicrosoftLoginMethods: Boolean(settings.blockMicrosoftLoginMethods),
-    allowedLinks
+    allowedLinks: Array.from(new Set([...allowedLinks, RESTRICTED_DISTRICT_DOMAIN]))
   };
+}
+
+function isRestrictedDistrictDomain(value) {
+  const domain = normalizeAllowlistDomainEntry(value);
+  if (!domain) return false;
+  return domain === RESTRICTED_DISTRICT_DOMAIN || domain.endsWith(`.${RESTRICTED_DISTRICT_DOMAIN}`);
 }
 
 function normalizeAllowlistDomainEntry(value) {
@@ -764,11 +775,11 @@ function renderDistrictSettingsPanel() {
   const scopeDistrictId = getAdminScopeDistrictId();
   if (!scopeDistrictId || !districtsCache[scopeDistrictId]) {
     districtBlockedDomainsInput.value = "";
-    districtAllowedLinksInput.value = "";
+    districtAllowedLinksInput.value = RESTRICTED_DISTRICT_DOMAIN;
     districtAllowlistToggle.checked = false;
     districtBlockGoogleLoginToggle.checked = false;
     districtBlockMicrosoftLoginToggle.checked = false;
-    districtAllowlistLinksWrap.classList.add("hidden");
+    districtAllowlistLinksWrap.classList.remove("hidden");
     Array.from(districtBlockedCategoriesSelect.options).forEach((option) => {
       option.selected = false;
     });
@@ -783,7 +794,7 @@ function renderDistrictSettingsPanel() {
   districtAllowlistToggle.checked = settings.strictAllowlistEnabled;
   districtBlockGoogleLoginToggle.checked = settings.blockGoogleLoginMethods;
   districtBlockMicrosoftLoginToggle.checked = settings.blockMicrosoftLoginMethods;
-  districtAllowlistLinksWrap.classList.toggle("hidden", !settings.strictAllowlistEnabled);
+  districtAllowlistLinksWrap.classList.remove("hidden");
 
   const selectedCategories = new Set(settings.blockedCategories);
   Array.from(districtBlockedCategoriesSelect.options).forEach((option) => {
@@ -800,8 +811,12 @@ async function saveDistrictGlobalSettings() {
 
   const blockedDomains = districtBlockedDomainsInput.value
     .split(",")
-    .map((d) => d.trim().toLowerCase())
+    .map((d) => normalizeAllowlistDomainEntry(d))
     .filter(Boolean);
+  if (blockedDomains.some((domain) => isRestrictedDistrictDomain(domain))) {
+    statusBanner.textContent = RESTRICTED_DISTRICT_DOMAIN_ERROR;
+    return;
+  }
   const blockedCategories = Array.from(districtBlockedCategoriesSelect.selectedOptions).map((option) => option.value);
   const strictAllowlistEnabled = Boolean(districtAllowlistToggle.checked);
   const blockGoogleLoginMethods = Boolean(districtBlockGoogleLoginToggle.checked);
@@ -809,7 +824,8 @@ async function saveDistrictGlobalSettings() {
   const allowedLinks = Array.from(new Set(districtAllowedLinksInput.value
     .split(/[,\n]/)
     .map((link) => normalizeAllowlistDomainEntry(link))
-    .filter(Boolean)));
+    .filter(Boolean)
+    .concat(RESTRICTED_DISTRICT_DOMAIN)));
 
   await update(ref(db, `districts/${scopeDistrictId}/settings`), {
     blockedDomains,
@@ -1274,7 +1290,7 @@ function setScreenModalPreview(student) {
 
 function renderClassroomViews() {
   const entries = [];
-  let settings = { blockedDomains: [], blockedCategories: [] };
+  let settings = { blockedDomains: [], blockedCategories: [], allowedLinks: [] };
 
   if (viewingAllClassrooms) {
     teacherClassesCache
@@ -1390,8 +1406,12 @@ function renderClassroomViews() {
   const districtBlockedCategories = Array.isArray(districtsCache?.[userProfile?.districtId]?.settings?.blockedCategories)
     ? districtsCache[userProfile.districtId].settings.blockedCategories
     : null;
+  const districtAllowedLinks = Array.isArray(districtsCache?.[userProfile?.districtId]?.settings?.allowedLinks)
+    ? districtsCache[userProfile.districtId].settings.allowedLinks
+    : null;
 
   blockedDomainsInput.disabled = viewingAllClassrooms;
+  alwaysAllowedLinksInput.disabled = viewingAllClassrooms;
   blockedCategoriesSelect.disabled = viewingAllClassrooms || isTeacher;
   settingsClassNameInput.disabled = viewingAllClassrooms;
   settingsClassTypeInput.disabled = viewingAllClassrooms;
@@ -1408,8 +1428,14 @@ function renderClassroomViews() {
   const visibleCategories = isTeacher && districtBlockedCategories
     ? districtBlockedCategories
     : (settings.blockedCategories || []);
+  const visibleAllowedLinks = isTeacher && districtAllowedLinks
+    ? districtAllowedLinks
+    : (settings.allowedLinks || []);
 
   blockedDomainsInput.value = viewingAllClassrooms ? "" : visibleDomains.join(", ");
+  alwaysAllowedLinksInput.value = viewingAllClassrooms
+    ? ""
+    : Array.from(new Set([...(visibleAllowedLinks || []), RESTRICTED_DISTRICT_DOMAIN])).join("\n");
   const selectedCategories = new Set(viewingAllClassrooms ? [] : visibleCategories);
   Array.from(blockedCategoriesSelect.options).forEach((option) => {
     option.selected = selectedCategories.has(option.value);
@@ -1675,6 +1701,7 @@ async function createClassFromPicker() {
     settings: {
       blockedDomains: [],
       blockedCategories: [],
+      allowedLinks: [RESTRICTED_DISTRICT_DOMAIN],
       testModeEnabled: false,
       testModeAllowedLinks: []
     },
@@ -1955,6 +1982,8 @@ async function writeDistrictLog(action, payload = {}) {
 
 async function toggleDomainBlock(domain, classId, options = {}) {
   if (!domain || !classId) return;
+  const normalizedDomain = normalizeAllowlistDomainEntry(domain);
+  if (!normalizedDomain) return;
 
   const room = getClassroomById(classId);
   const roomSettings = room?.settings || {};
@@ -1962,14 +1991,18 @@ async function toggleDomainBlock(domain, classId, options = {}) {
     ? roomSettings.blockedDomains.map((d) => String(d || "").trim().toLowerCase()).filter(Boolean)
     : [];
 
-  const currentlyBlocked = currentDomains.includes(domain);
+  const currentlyBlocked = currentDomains.includes(normalizedDomain);
+  if (!currentlyBlocked && isRestrictedDistrictDomain(normalizedDomain)) {
+    statusBanner.textContent = RESTRICTED_DISTRICT_DOMAIN_ERROR;
+    return;
+  }
   const nextDomains = currentlyBlocked
-    ? currentDomains.filter((d) => d !== domain)
-    : Array.from(new Set([...currentDomains, domain]));
+    ? currentDomains.filter((d) => d !== normalizedDomain)
+    : Array.from(new Set([...currentDomains, normalizedDomain]));
 
   statusBanner.textContent = currentlyBlocked
-    ? `Unblocking ${domain}...`
-    : `Blocking ${domain}...`;
+    ? `Unblocking ${normalizedDomain}...`
+    : `Blocking ${normalizedDomain}...`;
 
   await update(ref(db, `classrooms/${classId}/settings`), {
     blockedDomains: nextDomains,
@@ -1985,8 +2018,8 @@ async function toggleDomainBlock(domain, classId, options = {}) {
       ? districtSettings.blockedDomains.map((d) => String(d || "").trim().toLowerCase()).filter(Boolean)
       : [];
     const mergedDomains = currentlyBlocked
-      ? districtDomains.filter((d) => d !== domain)
-      : Array.from(new Set([...districtDomains, domain]));
+      ? districtDomains.filter((d) => d !== normalizedDomain)
+      : Array.from(new Set([...districtDomains, normalizedDomain])).filter((d) => !isRestrictedDistrictDomain(d));
 
     await update(ref(db, `districts/${districtId}/settings`), {
       blockedDomains: mergedDomains,
@@ -2003,14 +2036,14 @@ async function toggleDomainBlock(domain, classId, options = {}) {
 
     if (currentlyBlocked) {
       await writeDistrictLog("unblock_domain", {
-        domain,
+        domain: normalizedDomain,
         classId,
         className: room?.className || room?.classType || "Class",
         source: options.source || "tabs"
       });
     } else {
       await writeDistrictLog("block_domain", {
-        domain,
+        domain: normalizedDomain,
         classId,
         className: room?.className || room?.classType || "Class",
         source: options.source || "tabs"
@@ -2023,8 +2056,8 @@ async function toggleDomainBlock(domain, classId, options = {}) {
   }
 
   statusBanner.textContent = currentlyBlocked
-    ? `Unblocked ${domain}`
-    : `Blocked ${domain}`;
+    ? `Unblocked ${normalizedDomain}`
+    : `Blocked ${normalizedDomain}`;
 
   rerenderFocusedStudentModalPanel();
 }
@@ -2055,8 +2088,17 @@ async function saveClassroomSettings() {
   const classType = settingsClassTypeInput.value || "Other";
   const domains = blockedDomainsInput.value
     .split(",")
-    .map((d) => d.trim().toLowerCase())
+    .map((d) => normalizeAllowlistDomainEntry(d))
     .filter(Boolean);
+  if (domains.some((domain) => isRestrictedDistrictDomain(domain))) {
+    statusBanner.textContent = RESTRICTED_DISTRICT_DOMAIN_ERROR;
+    return;
+  }
+  const allowedLinks = Array.from(new Set(alwaysAllowedLinksInput.value
+    .split(/[,\n]/)
+    .map((link) => normalizeAllowlistDomainEntry(link))
+    .filter(Boolean)
+    .concat(RESTRICTED_DISTRICT_DOMAIN)));
 
   const isTeacher = userProfile?.role === "teacher";
 
@@ -2078,11 +2120,16 @@ async function saveClassroomSettings() {
     const existingDomains = Array.isArray(districtSettings.blockedDomains)
       ? districtSettings.blockedDomains.map((d) => String(d || "").trim().toLowerCase()).filter(Boolean)
       : [];
+    const existingAllowedLinks = Array.isArray(districtSettings.allowedLinks)
+      ? districtSettings.allowedLinks.map((link) => normalizeAllowlistDomainEntry(link)).filter(Boolean)
+      : [];
 
-    const mergedDomains = Array.from(new Set([...existingDomains, ...domains]));
+    const mergedDomains = Array.from(new Set([...existingDomains, ...domains])).filter((d) => !isRestrictedDistrictDomain(d));
+    const mergedAllowedLinks = Array.from(new Set([...existingAllowedLinks, ...allowedLinks, RESTRICTED_DISTRICT_DOMAIN]));
 
     await update(ref(db, `districts/${districtId}/settings`), {
       blockedDomains: mergedDomains,
+      allowedLinks: mergedAllowedLinks,
       updatedAt: Date.now(),
       updatedBy: currentUser?.uid || null
     });
@@ -2095,7 +2142,8 @@ async function saveClassroomSettings() {
     });
 
     blockedDomainsInput.value = mergedDomains.join(", ");
-    statusBanner.textContent = "Blocked links added and synced to all classrooms in your district.";
+    alwaysAllowedLinksInput.value = mergedAllowedLinks.join("\n");
+    statusBanner.textContent = "Blocked/unblocked link settings synced to all classrooms in your district.";
     return;
   }
 
@@ -2103,6 +2151,7 @@ async function saveClassroomSettings() {
 
   await update(ref(db, `${classRefPath}/settings`), {
     blockedDomains: domains,
+    allowedLinks,
     blockedCategories: categories,
     updatedAt: Date.now()
   });
