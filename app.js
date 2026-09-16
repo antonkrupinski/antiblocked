@@ -715,7 +715,7 @@ function getAdminScopeDistrictId() {
 function normalizeDistrictSettings(settings = {}) {
   const blockedDomains = Array.isArray(settings.blockedDomains)
     ? settings.blockedDomains
-      .map((d) => normalizeAllowlistDomainEntry(d))
+      .map((d) => normalizeDomainEntry(d))
       .filter((d) => d && !isRestrictedDistrictDomain(d))
     : [];
   const blockedCategories = Array.isArray(settings.blockedCategories)
@@ -723,7 +723,7 @@ function normalizeDistrictSettings(settings = {}) {
     : [];
   const allowedLinks = Array.isArray(settings.allowedLinks)
     ? Array.from(new Set(settings.allowedLinks
-      .map((link) => normalizeAllowlistDomainEntry(link))
+      .map((link) => normalizeAllowedLinkEntry(link))
       .filter(Boolean)))
     : [];
 
@@ -738,12 +738,18 @@ function normalizeDistrictSettings(settings = {}) {
 }
 
 function isRestrictedDistrictDomain(value) {
-  const domain = normalizeAllowlistDomainEntry(value);
+  const domain = extractDomainFromEntry(value);
   if (!domain) return false;
   return domain === RESTRICTED_DISTRICT_DOMAIN || domain.endsWith(`.${RESTRICTED_DISTRICT_DOMAIN}`);
 }
 
-function normalizeAllowlistDomainEntry(value) {
+function normalizeAllowedLinkEntry(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return raw;
+}
+
+function normalizeDomainEntry(value) {
   const raw = String(value || "").trim().toLowerCase();
   if (!raw) return "";
 
@@ -759,6 +765,10 @@ function normalizeAllowlistDomainEntry(value) {
       .split(/[/?#]/)[0]
       .trim();
   }
+}
+
+function extractDomainFromEntry(value) {
+  return normalizeDomainEntry(value);
 }
 
 function setDistrictSettingsControlsDisabled(disabled) {
@@ -811,7 +821,7 @@ async function saveDistrictGlobalSettings() {
 
   const blockedDomains = districtBlockedDomainsInput.value
     .split(",")
-    .map((d) => normalizeAllowlistDomainEntry(d))
+    .map((d) => normalizeDomainEntry(d))
     .filter(Boolean);
   if (blockedDomains.some((domain) => isRestrictedDistrictDomain(domain))) {
     statusBanner.textContent = RESTRICTED_DISTRICT_DOMAIN_ERROR;
@@ -823,7 +833,7 @@ async function saveDistrictGlobalSettings() {
   const blockMicrosoftLoginMethods = Boolean(districtBlockMicrosoftLoginToggle.checked);
   const allowedLinks = Array.from(new Set(districtAllowedLinksInput.value
     .split(/[,\n]/)
-    .map((link) => normalizeAllowlistDomainEntry(link))
+    .map((link) => normalizeAllowedLinkEntry(link))
     .filter(Boolean)
     .concat(RESTRICTED_DISTRICT_DOMAIN)));
 
@@ -1982,7 +1992,7 @@ async function writeDistrictLog(action, payload = {}) {
 
 async function toggleDomainBlock(domain, classId, options = {}) {
   if (!domain || !classId) return;
-  const normalizedDomain = normalizeAllowlistDomainEntry(domain);
+  const normalizedDomain = normalizeDomainEntry(domain);
   if (!normalizedDomain) return;
 
   const room = getClassroomById(classId);
@@ -2088,7 +2098,7 @@ async function saveClassroomSettings() {
   const classType = settingsClassTypeInput.value || "Other";
   const domains = blockedDomainsInput.value
     .split(",")
-    .map((d) => normalizeAllowlistDomainEntry(d))
+    .map((d) => normalizeDomainEntry(d))
     .filter(Boolean);
   if (domains.some((domain) => isRestrictedDistrictDomain(domain))) {
     statusBanner.textContent = RESTRICTED_DISTRICT_DOMAIN_ERROR;
@@ -2096,7 +2106,7 @@ async function saveClassroomSettings() {
   }
   const allowedLinks = Array.from(new Set(alwaysAllowedLinksInput.value
     .split(/[,\n]/)
-    .map((link) => normalizeAllowlistDomainEntry(link))
+    .map((link) => normalizeAllowedLinkEntry(link))
     .filter(Boolean)
     .concat(RESTRICTED_DISTRICT_DOMAIN)));
 
@@ -2121,7 +2131,7 @@ async function saveClassroomSettings() {
       ? districtSettings.blockedDomains.map((d) => String(d || "").trim().toLowerCase()).filter(Boolean)
       : [];
     const existingAllowedLinks = Array.isArray(districtSettings.allowedLinks)
-      ? districtSettings.allowedLinks.map((link) => normalizeAllowlistDomainEntry(link)).filter(Boolean)
+      ? districtSettings.allowedLinks.map((link) => normalizeAllowedLinkEntry(link)).filter(Boolean)
       : [];
 
     const mergedDomains = Array.from(new Set([...existingDomains, ...domains])).filter((d) => !isRestrictedDistrictDomain(d));
