@@ -92,33 +92,10 @@ p {
   gap: 10px;
 }
 
-.auth-brand-mark {
+.auth-brand-logo {
   width: 44px;
-  height: 38px;
-  position: relative;
-  isolation: isolate;
-}
-
-.auth-brand-mark::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 32px;
-  height: 16px;
-  border-radius: 16px 16px 0 0;
-  background: #ff7a1a;
-}
-
-.auth-brand-mark::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 36px;
-  height: 16px;
-  border-radius: 0 16px 16px 0;
-  background: #ff7a1a;
+  height: 44px;
+  object-fit: contain;
 }
 
 .auth-brand-text {
