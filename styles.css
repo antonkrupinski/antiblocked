@@ -653,6 +653,32 @@ p {
   flex-wrap: wrap;
 }
 
+.district-toggle-row {
+  margin: 8px 0 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.district-toggle-label {
+  margin: 0;
+  font-size: 13px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.district-toggle-input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
 .approve-select {
   width: 180px;
   margin: 0;
@@ -913,6 +939,46 @@ select:focus {
   letter-spacing: 0.08em;
 }
 
+.tabs-actions {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: #f1f5f9;
+  display: grid;
+  gap: 8px;
+}
+
+.tabs-actions .btn {
+  width: 100%;
+}
+
+.tabs-actions .btn.active {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.history-controls {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.history-controls select,
+.history-controls input {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  font-size: 12px;
+  background: #fff;
+}
+
+.history-controls select:focus,
+.history-controls input:focus {
+  outline: 2px solid #bfdbfe;
+  border-color: #60a5fa;
+}
+
 #screen-modal-image {
   width: 100%;
   max-height: 500px;
@@ -952,6 +1018,10 @@ select:focus {
   background: #e0f2fe;
 }
 
+.tab-row.deleted-tab {
+  background: #fff1f2;
+}
+
 .tab-title {
   font-weight: 700;
   color: #0f172a;
@@ -973,6 +1043,27 @@ select:focus {
   padding: 4px 8px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.tab-event {
+  grid-column: 2 / 3;
+  grid-row: 1 / 2;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 4px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tab-event.visited {
+  color: #065f46;
+  background: #d1fae5;
+}
+
+.tab-event.deleted {
+  color: #9f1239;
+  background: #ffe4e6;
 }
 
 .command-bar {
@@ -1096,6 +1187,10 @@ select:focus {
   }
 
   .screen-modal-body {
+    grid-template-columns: 1fr;
+  }
+
+  .history-controls {
     grid-template-columns: 1fr;
   }
 

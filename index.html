@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260326a">
+  <link rel="stylesheet" href="./styles.css?v=20260915d">
 </head>
 <body>
   <div id="auth-view" class="auth-shell">
@@ -235,6 +235,45 @@
                 </div>
                 <div id="district-classrooms" class="admin-list"></div>
               </div>
+
+              <div class="card admin-panel-card admin-panel-wide">
+                <div class="admin-panel-head">
+                  <h3>District Settings · Global Blocking</h3>
+                  <p class="form-help">These settings apply across the selected district.</p>
+                </div>
+
+                <label>Blocked domains (comma-separated)</label>
+                <textarea id="district-blocked-domains" rows="3" placeholder="example.com, youtube.com"></textarea>
+
+                <label>Blocked categories</label>
+                <select id="district-blocked-categories" class="category-dropdown" multiple size="10">
+                  <option value="social">Social Media</option>
+                  <option value="games">Games</option>
+                  <option value="adult">Adult Content</option>
+                  <option value="streaming">Streaming Video</option>
+                  <option value="shopping">Shopping</option>
+                  <option value="chat">Chat & Messaging</option>
+                  <option value="news">News</option>
+                  <option value="sports">Sports</option>
+                  <option value="music">Music</option>
+                  <option value="ai-tools">AI Tools</option>
+                  <option value="vpn-proxy">VPN/Proxy</option>
+                  <option value="gambling">Gambling</option>
+                </select>
+
+                <div class="district-toggle-row">
+                  <label for="district-allowlist-toggle" class="district-toggle-label">Strict district allowlist mode</label>
+                  <input id="district-allowlist-toggle" type="checkbox" class="district-toggle-input">
+                </div>
+                <p class="form-help">When enabled, only approved links + core Google services are allowed. Google search remains allowed, and AI Overview will be blocked.</p>
+
+                <div id="district-allowlist-links-wrap" class="hidden">
+                  <label>Allowed links (one per line or comma-separated)</label>
+                  <textarea id="district-allowed-links" rows="5" placeholder="https://classroom.google.com&#10;https://www.khanacademy.org"></textarea>
+                </div>
+
+                <button id="save-district-settings-btn" class="btn primary">Save district settings</button>
+              </div>
             </div>
           </div>
         </section>
@@ -347,6 +386,17 @@
               <span>Tabs</span>
               <span id="tabs-count"></span>
             </div>
+              <div class="tabs-actions">
+                <button id="toggle-history-btn" class="btn" type="button">View History</button>
+                <div id="history-controls" class="history-controls hidden">
+                  <select id="history-filter-select" aria-label="Filter history events">
+                    <option value="all">All events</option>
+                    <option value="visited">Visited only</option>
+                    <option value="deleted">Deleted only</option>
+                  </select>
+                  <input id="history-search-input" type="text" placeholder="Search domain or title" aria-label="Search history">
+                </div>
+              </div>
             <div id="screen-modal-tabs" class="tabs-panel"></div>
           </div>
         </div>
@@ -354,6 +404,6 @@
     </div>
   </div>
 
-  <script type="module" src="./app.js?v=20260326a"></script>
+  <script type="module" src="./app.js?v=20260915d"></script>
 </body>
 </html>

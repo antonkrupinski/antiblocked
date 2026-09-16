@@ -55,6 +55,12 @@ const saveSettingsBtn = document.getElementById("save-settings-btn");
 const pendingTeachers = document.getElementById("pending-teachers");
 const districtList = document.getElementById("district-list");
 const districtClassrooms = document.getElementById("district-classrooms");
+const districtBlockedDomainsInput = document.getElementById("district-blocked-domains");
+const districtBlockedCategoriesSelect = document.getElementById("district-blocked-categories");
+const districtAllowlistToggle = document.getElementById("district-allowlist-toggle");
+const districtAllowlistLinksWrap = document.getElementById("district-allowlist-links-wrap");
+const districtAllowedLinksInput = document.getElementById("district-allowed-links");
+const saveDistrictSettingsBtn = document.getElementById("save-district-settings-btn");
 const adminTabBtn = document.getElementById("admin-tab-btn");
 const districtScopeText = document.getElementById("district-scope");
 const adminDistrictCount = document.getElementById("admin-district-count");
@@ -108,6 +114,10 @@ const screenModalImage = document.getElementById("screen-modal-image");
 const screenModalTitle = document.getElementById("screen-modal-title");
 const screenModalTabs = document.getElementById("screen-modal-tabs");
 const tabsCount = document.getElementById("tabs-count");
+const toggleHistoryBtn = document.getElementById("toggle-history-btn");
+const historyControls = document.getElementById("history-controls");
+const historyFilterSelect = document.getElementById("history-filter-select");
+const historySearchInput = document.getElementById("history-search-input");
 const closeScreenModal = document.getElementById("close-screen-modal");
 const settingsToggles = document.querySelectorAll("[data-settings-toggle]");
 
@@ -149,6 +159,7 @@ let activeTeacherClassId = null;
 let viewingAllClassrooms = false;
 let allClassroomSelection = new Set();
 let lastWelcomeEmail = "";
+let showingStudentHistory = false;
 
 const tabs = document.querySelectorAll(".tab-btn");
 
@@ -187,13 +198,53 @@ cancelCreateDistrictBtn.addEventListener("click", () => {
 createDistrictBtn.addEventListener("click", createDistrict);
 copyDistrictCodeBtn.addEventListener("click", copyDistrictCode);
 regenerateDistrictCodeBtn.addEventListener("click", regenerateDistrictCode);
+saveDistrictSettingsBtn.addEventListener("click", saveDistrictGlobalSettings);
+districtAllowlistToggle.addEventListener("change", () => {
+  districtAllowlistLinksWrap.classList.toggle("hidden", !districtAllowlistToggle.checked);
+});
 closeManagedClassroomBtn.addEventListener("click", closeManagedClassroom);
 closeDistrictTeachersBtn.addEventListener("click", () => {
   districtTeachersModal.classList.add("hidden");
 });
 closeScreenModal.addEventListener("click", () => {
   selectedStudentContext = null;
+  showingStudentHistory = false;
+  if (historyFilterSelect) historyFilterSelect.value = "all";
+  if (historySearchInput) historySearchInput.value = "";
+  updateHistoryControlsVisibility();
+  if (toggleHistoryBtn) {
+    toggleHistoryBtn.textContent = "View History";
+    toggleHistoryBtn.classList.remove("active");
+  }
   screenModal.classList.add("hidden");
+});
+
+toggleHistoryBtn?.addEventListener("click", () => {
+  if (!selectedStudentContext) return;
+  showingStudentHistory = !showingStudentHistory;
+  toggleHistoryBtn.textContent = showingStudentHistory ? "View Open Tabs" : "View History";
+  toggleHistoryBtn.classList.toggle("active", showingStudentHistory);
+  updateHistoryControlsVisibility();
+
+  const focusedStudent = viewingAllClassrooms
+    ? teacherClassesCache
+        .find((room) => room.classId === selectedStudentContext.classId)
+        ?.students?.[selectedStudentContext.studentId]
+    : classroomData?.students?.[selectedStudentContext.studentId];
+
+  if (focusedStudent) {
+    renderStudentModalPanel(focusedStudent);
+  }
+});
+
+historyFilterSelect?.addEventListener("change", () => {
+  if (!showingStudentHistory || !selectedStudentContext) return;
+  rerenderFocusedStudentModalPanel();
+});
+
+historySearchInput?.addEventListener("input", () => {
+  if (!showingStudentHistory || !selectedStudentContext) return;
+  rerenderFocusedStudentModalPanel();
 });
 window.addEventListener("beforeunload", () => {
   stopTeacherHeartbeat();
@@ -537,6 +588,7 @@ async function mountAdminPanel(profile) {
     renderDistrictClassrooms();
     renderDistrictCode();
     renderAdminStats();
+    renderDistrictSettingsPanel();
   });
 
   stopPendingWatcher = onValue(ref(db, "pendingTeachers"), (snapshot) => {
@@ -573,9 +625,7 @@ function renderAdminStats() {
 
   const districtEntries = Object.entries(districtsCache || {});
   const pendingCount = Object.keys(pendingCache || {}).length;
-  const scopeDistrictId = adminContext
-    ? (adminContext.role === "super_admin" ? adminContext.activeDistrictId : adminContext.districtId)
-    : null;
+  const scopeDistrictId = getAdminScopeDistrictId();
 
   const teacherCount = Object.values(usersCache || {}).filter((user) => {
     if (!(user?.approved && user?.role === "teacher")) return false;
@@ -592,6 +642,95 @@ function renderAdminStats() {
   adminPendingCount.textContent = String(pendingCount);
   adminTeacherCount.textContent = String(teacherCount);
   adminClassroomCount.textContent = String(classroomCount);
+}
+
+function getAdminScopeDistrictId() {
+  if (!adminContext) return null;
+  return adminContext.role === "super_admin" ? adminContext.activeDistrictId : adminContext.districtId;
+}
+
+function normalizeDistrictSettings(settings = {}) {
+  const blockedDomains = Array.isArray(settings.blockedDomains)
+    ? settings.blockedDomains.map((d) => String(d || "").trim().toLowerCase()).filter(Boolean)
+    : [];
+  const blockedCategories = Array.isArray(settings.blockedCategories)
+    ? settings.blockedCategories.map((c) => String(c || "").trim()).filter(Boolean)
+    : [];
+  const allowedLinks = Array.isArray(settings.allowedLinks)
+    ? settings.allowedLinks.map((link) => String(link || "").trim()).filter(Boolean)
+    : [];
+
+  return {
+    blockedDomains,
+    blockedCategories,
+    strictAllowlistEnabled: Boolean(settings.strictAllowlistEnabled),
+    allowedLinks
+  };
+}
+
+function setDistrictSettingsControlsDisabled(disabled) {
+  districtBlockedDomainsInput.disabled = disabled;
+  districtBlockedCategoriesSelect.disabled = disabled;
+  districtAllowlistToggle.disabled = disabled;
+  districtAllowedLinksInput.disabled = disabled;
+  saveDistrictSettingsBtn.disabled = disabled;
+}
+
+function renderDistrictSettingsPanel() {
+  const scopeDistrictId = getAdminScopeDistrictId();
+  if (!scopeDistrictId || !districtsCache[scopeDistrictId]) {
+    districtBlockedDomainsInput.value = "";
+    districtAllowedLinksInput.value = "";
+    districtAllowlistToggle.checked = false;
+    districtAllowlistLinksWrap.classList.add("hidden");
+    Array.from(districtBlockedCategoriesSelect.options).forEach((option) => {
+      option.selected = false;
+    });
+    setDistrictSettingsControlsDisabled(true);
+    return;
+  }
+
+  setDistrictSettingsControlsDisabled(false);
+  const settings = normalizeDistrictSettings(districtsCache[scopeDistrictId]?.settings || {});
+  districtBlockedDomainsInput.value = settings.blockedDomains.join(", ");
+  districtAllowedLinksInput.value = settings.allowedLinks.join("\n");
+  districtAllowlistToggle.checked = settings.strictAllowlistEnabled;
+  districtAllowlistLinksWrap.classList.toggle("hidden", !settings.strictAllowlistEnabled);
+
+  const selectedCategories = new Set(settings.blockedCategories);
+  Array.from(districtBlockedCategoriesSelect.options).forEach((option) => {
+    option.selected = selectedCategories.has(option.value);
+  });
+}
+
+async function saveDistrictGlobalSettings() {
+  const scopeDistrictId = getAdminScopeDistrictId();
+  if (!scopeDistrictId) {
+    statusBanner.textContent = "Select a district first.";
+    return;
+  }
+
+  const blockedDomains = districtBlockedDomainsInput.value
+    .split(",")
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+  const blockedCategories = Array.from(districtBlockedCategoriesSelect.selectedOptions).map((option) => option.value);
+  const strictAllowlistEnabled = Boolean(districtAllowlistToggle.checked);
+  const allowedLinks = districtAllowedLinksInput.value
+    .split(/[,\n]/)
+    .map((link) => link.trim())
+    .filter(Boolean);
+
+  await update(ref(db, `districts/${scopeDistrictId}/settings`), {
+    blockedDomains,
+    blockedCategories,
+    strictAllowlistEnabled,
+    allowedLinks,
+    updatedAt: Date.now(),
+    updatedBy: currentUser?.uid || null
+  });
+
+  statusBanner.textContent = "District global settings saved.";
 }
 
 function renderPendingApprovals() {
@@ -765,6 +904,7 @@ function renderDistrictList() {
         renderDistrictClassrooms();
         renderPendingApprovals();
         renderDistrictCode();
+        renderDistrictSettingsPanel();
       });
 
       controls.appendChild(teachersBtn);
@@ -812,7 +952,7 @@ function openDistrictTeachers(districtId, districtName) {
 
 function renderDistrictCode() {
   if (!adminContext) return;
-  const scopeDistrictId = adminContext.role === "super_admin" ? adminContext.activeDistrictId : adminContext.districtId;
+  const scopeDistrictId = getAdminScopeDistrictId();
   if (!scopeDistrictId) {
     districtCodeBar.classList.add("hidden");
     return;
@@ -830,7 +970,7 @@ function renderDistrictClassrooms() {
   districtClassrooms.innerHTML = "";
   if (!adminContext) return;
 
-  const scopeDistrictId = adminContext.role === "super_admin" ? adminContext.activeDistrictId : adminContext.districtId;
+  const scopeDistrictId = getAdminScopeDistrictId();
   if (!scopeDistrictId) {
     districtClassrooms.innerHTML = '<p class="admin-empty">Select a district to manage classrooms.</p>';
     renderAdminStats();
@@ -909,7 +1049,7 @@ async function createDistrict() {
 
 async function regenerateDistrictCode() {
   if (!adminContext) return;
-  const scopeDistrictId = adminContext.role === "super_admin" ? adminContext.activeDistrictId : adminContext.districtId;
+  const scopeDistrictId = getAdminScopeDistrictId();
   if (!scopeDistrictId) return;
   const joinCode = generateJoinCode();
   await update(ref(db, `districts/${scopeDistrictId}`), {
@@ -921,7 +1061,7 @@ async function regenerateDistrictCode() {
 
 async function copyDistrictCode() {
   if (!adminContext) return;
-  const scopeDistrictId = adminContext.role === "super_admin" ? adminContext.activeDistrictId : adminContext.districtId;
+  const scopeDistrictId = getAdminScopeDistrictId();
   const code = districtsCache[scopeDistrictId]?.joinCode;
   if (!code) {
     statusBanner.textContent = "No district code available.";
@@ -1114,7 +1254,7 @@ function renderClassroomViews() {
         ? `${focusedStudent.displayName || "Student screen"} · ${activeClassName}`
         : focusedStudent.displayName || "Student screen";
       setScreenModalPreview(focusedStudent);
-      renderStudentTabsPanel(focusedStudent);
+      renderStudentModalPanel(focusedStudent);
     } else {
       screenModal.classList.add("hidden");
       selectedStudentContext = null;
@@ -1435,12 +1575,48 @@ async function createClassFromPicker() {
 
 function openScreenModal(studentId, classId, student, className = "") {
   selectedStudentContext = { studentId, classId };
+  showingStudentHistory = false;
+  if (historyFilterSelect) historyFilterSelect.value = "all";
+  if (historySearchInput) historySearchInput.value = "";
+  updateHistoryControlsVisibility();
+  if (toggleHistoryBtn) {
+    toggleHistoryBtn.textContent = "View History";
+    toggleHistoryBtn.classList.remove("active");
+  }
   screenModalTitle.textContent = className
     ? `${student.displayName || "Student screen"} · ${className}`
     : student.displayName || "Student screen";
   setScreenModalPreview(student);
-  renderStudentTabsPanel(student);
+  renderStudentModalPanel(student);
   screenModal.classList.remove("hidden");
+}
+
+function updateHistoryControlsVisibility() {
+  historyControls?.classList.toggle("hidden", !showingStudentHistory);
+}
+
+function getFocusedStudent() {
+  if (!selectedStudentContext) return null;
+  return viewingAllClassrooms
+    ? teacherClassesCache
+        .find((room) => room.classId === selectedStudentContext.classId)
+        ?.students?.[selectedStudentContext.studentId]
+    : classroomData?.students?.[selectedStudentContext.studentId];
+}
+
+function rerenderFocusedStudentModalPanel() {
+  const focusedStudent = getFocusedStudent();
+  if (focusedStudent) {
+    renderStudentModalPanel(focusedStudent);
+  }
+}
+
+function renderStudentModalPanel(student) {
+  if (showingStudentHistory) {
+    renderStudentHistoryPanel(student);
+  } else {
+    renderStudentTabsPanel(student);
+  }
 }
 
 function renderStudentTabsPanel(student) {
@@ -1484,6 +1660,69 @@ function renderStudentTabsPanel(student) {
     row.appendChild(title);
     row.appendChild(url);
     row.appendChild(closeBtn);
+    screenModalTabs.appendChild(row);
+  });
+}
+
+function renderStudentHistoryPanel(student) {
+  const history = Array.isArray(student.tabHistory) ? [...student.tabHistory] : [];
+  history.sort((a, b) => (b?.at || 0) - (a?.at || 0));
+  const eventFilter = historyFilterSelect?.value || "all";
+  const search = String(historySearchInput?.value || "").trim().toLowerCase();
+
+  const filtered = history.filter((entry) => {
+    const eventType = String(entry?.eventType || "visited").toLowerCase();
+    if (eventFilter !== "all" && eventType !== eventFilter) return false;
+
+    if (!search) return true;
+    const url = String(entry?.url || "").toLowerCase();
+    const title = String(entry?.title || "").toLowerCase();
+    let host = "";
+    try {
+      host = new URL(entry?.url || "").hostname.toLowerCase();
+    } catch {
+      host = "";
+    }
+
+    return url.includes(search) || title.includes(search) || host.includes(search);
+  });
+
+  tabsCount.textContent = history.length
+    ? `${filtered.length}/${history.length} events`
+    : "";
+  screenModalTabs.innerHTML = "";
+
+  if (!history.length) {
+    screenModalTabs.innerHTML = '<div class="tab-row">No history data yet.</div>';
+    return;
+  }
+
+  if (!filtered.length) {
+    screenModalTabs.innerHTML = '<div class="tab-row">No history items match this filter.</div>';
+    return;
+  }
+
+  filtered.forEach((entry) => {
+    const row = document.createElement("div");
+    const eventType = String(entry?.eventType || "visited").toLowerCase();
+    row.className = eventType === "deleted" ? "tab-row deleted-tab" : "tab-row";
+
+    const title = document.createElement("div");
+    title.className = "tab-title";
+    title.textContent = entry.title || "Untitled";
+
+    const url = document.createElement("div");
+    url.className = "tab-url";
+    url.textContent = entry.url || "";
+
+    const eventBadge = document.createElement("span");
+    eventBadge.className = `tab-event ${eventType === "deleted" ? "deleted" : "visited"}`;
+    const time = entry?.at ? new Date(entry.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+    eventBadge.textContent = `${eventType === "deleted" ? "Deleted" : "Visited"}${time ? ` · ${time}` : ""}`;
+
+    row.appendChild(title);
+    row.appendChild(url);
+    row.appendChild(eventBadge);
     screenModalTabs.appendChild(row);
   });
 }
