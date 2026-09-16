@@ -730,7 +730,36 @@ async function saveDistrictGlobalSettings() {
     updatedBy: currentUser?.uid || null
   });
 
+  await propagateDistrictSettingsToClassrooms(scopeDistrictId, {
+    blockedDomains,
+    blockedCategories
+  });
+
   statusBanner.textContent = "District global settings saved.";
+}
+
+async function propagateDistrictSettingsToClassrooms(districtId, settings) {
+  if (!districtId) return;
+
+  const districtBlockedDomains = Array.isArray(settings?.blockedDomains)
+    ? settings.blockedDomains.map((d) => String(d || "").trim().toLowerCase()).filter(Boolean)
+    : [];
+  const districtBlockedCategories = Array.isArray(settings?.blockedCategories)
+    ? settings.blockedCategories.map((c) => String(c || "").trim()).filter(Boolean)
+    : [];
+
+  const snapshot = await get(ref(db, "classrooms"));
+  const allClassrooms = snapshot.val() || {};
+  const updates = Object.entries(allClassrooms)
+    .filter(([, room]) => room?.districtId === districtId)
+    .map(([classId]) => update(ref(db, `classrooms/${classId}/settings`), {
+      blockedDomains: districtBlockedDomains,
+      blockedCategories: districtBlockedCategories,
+      updatedAt: Date.now(),
+      updatedBy: currentUser?.uid || null
+    }));
+
+  await Promise.all(updates);
 }
 
 function renderPendingApprovals() {
@@ -1261,8 +1290,16 @@ function renderClassroomViews() {
     }
   }
 
+  const isTeacher = userProfile?.role === "teacher";
+  const districtBlockedDomains = Array.isArray(districtsCache?.[userProfile?.districtId]?.settings?.blockedDomains)
+    ? districtsCache[userProfile.districtId].settings.blockedDomains
+    : null;
+  const districtBlockedCategories = Array.isArray(districtsCache?.[userProfile?.districtId]?.settings?.blockedCategories)
+    ? districtsCache[userProfile.districtId].settings.blockedCategories
+    : null;
+
   blockedDomainsInput.disabled = viewingAllClassrooms;
-  blockedCategoriesSelect.disabled = viewingAllClassrooms;
+  blockedCategoriesSelect.disabled = viewingAllClassrooms || isTeacher;
   settingsClassNameInput.disabled = viewingAllClassrooms;
   settingsClassTypeInput.disabled = viewingAllClassrooms;
   saveSettingsBtn.disabled = viewingAllClassrooms;
@@ -1272,8 +1309,15 @@ function renderClassroomViews() {
     : (settings.testModeEnabled ? "Test Mode On" : "Test Mode");
   settingsClassNameInput.value = viewingAllClassrooms ? "" : (classroomData?.className || "");
   settingsClassTypeInput.value = viewingAllClassrooms ? "Other" : (classroomData?.classType || "Other");
-  blockedDomainsInput.value = viewingAllClassrooms ? "" : (settings.blockedDomains || []).join(", ");
-  const selectedCategories = new Set(viewingAllClassrooms ? [] : settings.blockedCategories || []);
+  const visibleDomains = isTeacher && districtBlockedDomains
+    ? districtBlockedDomains
+    : (settings.blockedDomains || []);
+  const visibleCategories = isTeacher && districtBlockedCategories
+    ? districtBlockedCategories
+    : (settings.blockedCategories || []);
+
+  blockedDomainsInput.value = viewingAllClassrooms ? "" : visibleDomains.join(", ");
+  const selectedCategories = new Set(viewingAllClassrooms ? [] : visibleCategories);
   Array.from(blockedCategoriesSelect.options).forEach((option) => {
     option.selected = selectedCategories.has(option.value);
   });
@@ -1299,6 +1343,12 @@ function watchTeacherDistrict() {
   stopTeacherDistrictWatcher = onValue(ref(db, `districts/${userProfile.districtId}`), (snapshot) => {
     const district = snapshot.val();
     classCodeDisplay.textContent = district?.joinCode || "--------";
+    if (district) {
+      districtsCache[userProfile.districtId] = district;
+    }
+    if (classroomData && !viewingAllClassrooms) {
+      renderClassroomViews();
+    }
   });
 }
 
@@ -1755,13 +1805,49 @@ async function saveClassroomSettings() {
     .split(",")
     .map((d) => d.trim().toLowerCase())
     .filter(Boolean);
-  const categories = Array.from(blockedCategoriesSelect.selectedOptions).map((option) => option.value);
+
+  const isTeacher = userProfile?.role === "teacher";
 
   await update(ref(db, classRefPath), {
     className: className || classroomData?.className || "Class",
     classType,
     updatedAt: Date.now()
   });
+
+  if (isTeacher) {
+    const districtId = userProfile?.districtId;
+    if (!districtId) {
+      statusBanner.textContent = "No district assigned for global blocked links.";
+      return;
+    }
+
+    const districtSettingsSnap = await get(ref(db, `districts/${districtId}/settings`));
+    const districtSettings = districtSettingsSnap.val() || {};
+    const existingDomains = Array.isArray(districtSettings.blockedDomains)
+      ? districtSettings.blockedDomains.map((d) => String(d || "").trim().toLowerCase()).filter(Boolean)
+      : [];
+
+    const mergedDomains = Array.from(new Set([...existingDomains, ...domains]));
+
+    await update(ref(db, `districts/${districtId}/settings`), {
+      blockedDomains: mergedDomains,
+      updatedAt: Date.now(),
+      updatedBy: currentUser?.uid || null
+    });
+
+    await propagateDistrictSettingsToClassrooms(districtId, {
+      blockedDomains: mergedDomains,
+      blockedCategories: Array.isArray(districtSettings.blockedCategories)
+        ? districtSettings.blockedCategories
+        : []
+    });
+
+    blockedDomainsInput.value = mergedDomains.join(", ");
+    statusBanner.textContent = "Blocked links added and synced to all classrooms in your district.";
+    return;
+  }
+
+  const categories = Array.from(blockedCategoriesSelect.selectedOptions).map((option) => option.value);
 
   await update(ref(db, `${classRefPath}/settings`), {
     blockedDomains: domains,
