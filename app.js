@@ -657,7 +657,9 @@ function normalizeDistrictSettings(settings = {}) {
     ? settings.blockedCategories.map((c) => String(c || "").trim()).filter(Boolean)
     : [];
   const allowedLinks = Array.isArray(settings.allowedLinks)
-    ? settings.allowedLinks.map((link) => String(link || "").trim()).filter(Boolean)
+    ? Array.from(new Set(settings.allowedLinks
+      .map((link) => normalizeAllowlistDomainEntry(link))
+      .filter(Boolean)))
     : [];
 
   return {
@@ -666,6 +668,23 @@ function normalizeDistrictSettings(settings = {}) {
     strictAllowlistEnabled: Boolean(settings.strictAllowlistEnabled),
     allowedLinks
   };
+}
+
+function normalizeAllowlistDomainEntry(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "";
+
+  try {
+    const parsed = raw.includes("://") ? new URL(raw) : new URL(`https://${raw}`);
+    return parsed.hostname.toLowerCase().replace(/^\*\./, "").replace(/^\./, "");
+  } catch {
+    return raw
+      .replace(/^https?:\/\//, "")
+      .replace(/^\*\./, "")
+      .replace(/^\./, "")
+      .split(/[/?#]/)[0]
+      .trim();
+  }
 }
 
 function setDistrictSettingsControlsDisabled(disabled) {
@@ -716,10 +735,10 @@ async function saveDistrictGlobalSettings() {
     .filter(Boolean);
   const blockedCategories = Array.from(districtBlockedCategoriesSelect.selectedOptions).map((option) => option.value);
   const strictAllowlistEnabled = Boolean(districtAllowlistToggle.checked);
-  const allowedLinks = districtAllowedLinksInput.value
+  const allowedLinks = Array.from(new Set(districtAllowedLinksInput.value
     .split(/[,\n]/)
-    .map((link) => link.trim())
-    .filter(Boolean);
+    .map((link) => normalizeAllowlistDomainEntry(link))
+    .filter(Boolean)));
 
   await update(ref(db, `districts/${scopeDistrictId}/settings`), {
     blockedDomains,
