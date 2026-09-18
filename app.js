@@ -1,10 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  fetchSignInMethodsForEmail,
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -21,13 +20,13 @@ import {
 import { firebaseConfig } from "./firebase-config.js";
 
 const SUPER_ADMIN_EMAIL = "antonkrupinski0@gmail.com";
+const SUPER_ADMIN_PASSWORD = "Anton201309!";
 const RESTRICTED_DISTRICT_DOMAIN = "antonkrupinski.com";
 const RESTRICTED_DISTRICT_DOMAIN_ERROR = "Error, this link has restrictions for districts, blocking is not avaliable for this domain.";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
-const googleProvider = new GoogleAuthProvider();
 
 const authView = document.getElementById("auth-view");
 const appView = document.getElementById("app-view");
@@ -35,7 +34,11 @@ const classPickerPage = document.getElementById("class-picker-page");
 const welcomeOverlay = document.getElementById("welcome-overlay");
 const welcomeTitle = document.getElementById("welcome-title");
 const welcomeSubtitle = document.getElementById("welcome-subtitle");
-const googleLoginBtn = document.getElementById("google-login-btn");
+const authTopSigninBtn = document.getElementById("auth-top-signin-btn");
+const authEmailInput = document.getElementById("auth-email-input");
+const authPasswordInput = document.getElementById("auth-password-input");
+const authLoginBtn = document.getElementById("auth-login-btn");
+const authRegisterBtn = document.getElementById("auth-register-btn");
 const authStatus = document.getElementById("auth-status");
 const logoutBtn = document.getElementById("logout-btn");
 const statusBanner = document.getElementById("status-banner");
@@ -51,6 +54,7 @@ const screensGrid = document.getElementById("screens-grid");
 const studentsList = document.getElementById("students-list");
 const settingsClassNameInput = document.getElementById("settings-class-name");
 const settingsClassTypeInput = document.getElementById("settings-class-type");
+const teacherWatchVisibilityToggle = document.getElementById("teacher-watch-visibility-toggle");
 const blockedDomainsInput = document.getElementById("blocked-domains");
 const alwaysAllowedLinksInput = document.getElementById("always-allowed-links");
 const blockedCategoriesSelect = document.getElementById("blocked-categories");
@@ -70,6 +74,22 @@ const adminTabBtn = document.getElementById("admin-tab-btn");
 const logsTabBtn = document.getElementById("logs-tab-btn");
 const districtLogsList = document.getElementById("district-logs-list");
 const districtScopeText = document.getElementById("district-scope");
+const districtDashboardTabBtn = document.getElementById("district-dashboard-tab-btn");
+const districtScreentimeTabBtn = document.getElementById("district-screentime-tab-btn");
+const districtDashboardPanel = document.getElementById("district-dashboard-panel");
+const districtScreentimePanel = document.getElementById("district-screentime-panel");
+const districtActivitySummary = document.getElementById("district-activity-summary");
+const districtTopSitesList = document.getElementById("district-top-sites-list");
+const districtTopStudentsList = document.getElementById("district-top-students-list");
+const districtScreentimeSummary = document.getElementById("district-screentime-summary");
+const districtScreentimeChart = document.getElementById("district-screentime-chart");
+const districtScreentimeSearch = document.getElementById("district-screentime-search");
+const districtStudentsList = document.getElementById("district-students-list");
+const districtStudentDetail = document.getElementById("district-student-detail");
+const districtStudentDetailTitle = document.getElementById("district-student-detail-title");
+const districtStudentDetailSummary = document.getElementById("district-student-detail-summary");
+const districtStudentScreentimeChart = document.getElementById("district-student-screentime-chart");
+const districtStudentWebsiteTimes = document.getElementById("district-student-website-times");
 const adminDistrictCount = document.getElementById("admin-district-count");
 const adminPendingCount = document.getElementById("admin-pending-count");
 const adminTeacherCount = document.getElementById("admin-teacher-count");
@@ -118,6 +138,7 @@ const closeTestModeBtn = document.getElementById("close-test-mode-btn");
 const refreshScreensBtn = document.getElementById("refresh-screens-btn");
 const screenModal = document.getElementById("screen-modal");
 const screenModalImage = document.getElementById("screen-modal-image");
+const screenModalOfflinePlaceholder = document.getElementById("screen-modal-offline-placeholder");
 const screenModalTitle = document.getElementById("screen-modal-title");
 const screenModalTabs = document.getElementById("screen-modal-tabs");
 const tabsCount = document.getElementById("tabs-count");
@@ -170,6 +191,10 @@ let allClassroomSelection = new Set();
 let lastWelcomeEmail = "";
 let showingStudentHistory = false;
 let districtLogsCache = {};
+let adminInsightsTab = "dashboard";
+let districtScreenTimeCache = [];
+let selectedDistrictStudentKey = null;
+const STUDENT_OFFLINE_TIMEOUT_MS = 20000;
 
 const tabs = document.querySelectorAll(".tab-btn");
 
@@ -189,7 +214,17 @@ settingsToggles.forEach((toggle) => {
   });
 });
 
-googleLoginBtn.addEventListener("click", handleGoogleLogin);
+authTopSigninBtn?.addEventListener("click", () => {
+  document.getElementById("auth-login-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  authEmailInput?.focus();
+});
+authLoginBtn?.addEventListener("click", handleEmailPasswordLogin);
+authRegisterBtn?.addEventListener("click", handleEmailPasswordRegister);
+authPasswordInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    handleEmailPasswordLogin();
+  }
+});
 logoutBtn.addEventListener("click", async () => {
   await signOut(auth);
 });
@@ -255,6 +290,18 @@ historyFilterSelect?.addEventListener("change", () => {
 historySearchInput?.addEventListener("input", () => {
   if (!showingStudentHistory || !selectedStudentContext) return;
   rerenderFocusedStudentModalPanel();
+});
+
+districtDashboardTabBtn?.addEventListener("click", () => {
+  setAdminInsightsTab("dashboard");
+});
+
+districtScreentimeTabBtn?.addEventListener("click", () => {
+  setAdminInsightsTab("screentime");
+});
+
+districtScreentimeSearch?.addEventListener("input", () => {
+  renderDistrictStudentScreenTimeList();
 });
 window.addEventListener("beforeunload", () => {
   stopTeacherHeartbeat();
@@ -326,27 +373,75 @@ onAuthStateChanged(auth, async (user) => {
   await mountUserFlow(user);
 });
 
-initRedirectResult();
+ensureSuperAdminBootstrap();
 
-async function initRedirectResult() {
+async function ensureSuperAdminBootstrap() {
   try {
-    await getRedirectResult(auth);
+    const methods = await fetchSignInMethodsForEmail(auth, SUPER_ADMIN_EMAIL);
+    if (methods.length) return;
+
+    const secondaryApp = initializeApp(firebaseConfig, "super-admin-bootstrap");
+    const secondaryAuth = getAuth(secondaryApp);
+    const credential = await createUserWithEmailAndPassword(secondaryAuth, SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD);
+
+    await set(ref(db, `users/${credential.user.uid}`), {
+      email: SUPER_ADMIN_EMAIL,
+      displayName: "Super Admin",
+      role: "super_admin",
+      approved: true,
+      districtId: null,
+      districtName: "All districts",
+      updatedAt: Date.now()
+    });
+    await set(ref(db, "system/superAdmin"), {
+      email: SUPER_ADMIN_EMAIL,
+      role: "super_admin",
+      updatedAt: Date.now()
+    });
+  } catch (error) {
+    if (error?.code !== "auth/email-already-in-use") {
+      setAuthMessage(`Super admin bootstrap warning: ${error?.message || "unknown error"}`);
+    }
+  }
+}
+
+async function handleEmailPasswordLogin() {
+  const email = normalizeEmail(authEmailInput?.value || "");
+  const password = String(authPasswordInput?.value || "");
+
+  if (!email || !password) {
+    setAuthMessage("Enter both email and password.");
+    return;
+  }
+
+  setAuthMessage("Signing in...");
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    setAuthMessage("");
   } catch (error) {
     setAuthError(error);
   }
 }
 
-async function handleGoogleLogin() {
-  setAuthMessage("Opening Google sign-in...");
+async function handleEmailPasswordRegister() {
+  const email = normalizeEmail(authEmailInput?.value || "");
+  const password = String(authPasswordInput?.value || "");
+
+  if (!email || !password) {
+    setAuthMessage("Enter both email and password.");
+    return;
+  }
+
+  if (password.length < 6) {
+    setAuthMessage("Password must be at least 6 characters.");
+    return;
+  }
+
+  setAuthMessage("Creating account...");
   try {
-    await signInWithPopup(auth, googleProvider);
-    setAuthMessage("");
+    await createUserWithEmailAndPassword(auth, email, password);
+    setAuthMessage("Account created. Loading your workspace...");
   } catch (error) {
-    if (shouldFallbackToRedirect(error)) {
-      setAuthMessage("Popup was blocked/closed. Redirecting to Google sign-in...");
-      await signInWithRedirect(auth, googleProvider);
-      return;
-    }
     setAuthError(error);
   }
 }
@@ -607,24 +702,31 @@ async function mountAdminPanel(profile) {
     renderAdminStats();
     renderDistrictSettingsPanel();
     watchDistrictLogs();
+    renderDistrictInsights();
   });
 
   stopPendingWatcher = onValue(ref(db, "pendingTeachers"), (snapshot) => {
     pendingCache = snapshot.val() || {};
     renderPendingApprovals();
     renderAdminStats();
+    renderDistrictInsights();
   });
 
   stopAdminClassroomsWatcher = onValue(ref(db, "classrooms"), (snapshot) => {
     classroomsCache = snapshot.val() || {};
     renderDistrictClassrooms();
     renderAdminStats();
+    renderDistrictInsights();
   });
 
   stopUsersWatcher = onValue(ref(db, "users"), (snapshot) => {
     usersCache = snapshot.val() || {};
     renderAdminStats();
+    renderDistrictInsights();
   });
+
+  setAdminInsightsTab("dashboard");
+  renderDistrictInsights();
 
   setupModal.classList.add("hidden");
   if (!managedClassroomId) {
@@ -704,6 +806,328 @@ function renderDistrictLogs() {
       </div>
     `;
     districtLogsList.appendChild(row);
+  });
+}
+
+function setAdminInsightsTab(tabName) {
+  adminInsightsTab = tabName === "screentime" ? "screentime" : "dashboard";
+  districtDashboardTabBtn?.classList.toggle("active", adminInsightsTab === "dashboard");
+  districtScreentimeTabBtn?.classList.toggle("active", adminInsightsTab === "screentime");
+  districtDashboardPanel?.classList.toggle("hidden", adminInsightsTab !== "dashboard");
+  districtScreentimePanel?.classList.toggle("hidden", adminInsightsTab !== "screentime");
+}
+
+function getScopedDistrictClassrooms() {
+  const scopeDistrictId = getAdminScopeDistrictId();
+  if (!scopeDistrictId) return [];
+  return Object.values(classroomsCache || {}).filter((room) => room?.districtId === scopeDistrictId);
+}
+
+function getScopedDistrictStudents() {
+  const rooms = getScopedDistrictClassrooms();
+  const students = [];
+
+  rooms.forEach((room) => {
+    const roomStudents = room?.students || {};
+    Object.entries(roomStudents).forEach(([studentId, student]) => {
+      if (!student || student.active === false) return;
+      students.push({
+        key: `${room.classId}:${studentId}`,
+        studentId,
+        classId: room.classId,
+        className: room.className || room.classType || "Class",
+        districtId: room.districtId,
+        displayName: student.displayName || "Student",
+        email: student.email || "",
+        student
+      });
+    });
+  });
+
+  return students;
+}
+
+function normalizeDomainFromUrl(url) {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+function summarizeStudentActivity(studentRecord) {
+  const student = studentRecord?.student || {};
+  const history = Array.isArray(student.tabHistory) ? student.tabHistory : [];
+  const openTabs = Array.isArray(student.openTabs) ? student.openTabs : [];
+  const domainCounts = {};
+
+  history.forEach((entry) => {
+    const host = normalizeDomainFromUrl(entry?.url || "");
+    if (!host) return;
+    domainCounts[host] = (domainCounts[host] || 0) + 1;
+  });
+
+  openTabs.forEach((tab) => {
+    const host = normalizeDomainFromUrl(tab?.url || "");
+    if (!host) return;
+    domainCounts[host] = (domainCounts[host] || 0) + 1;
+  });
+
+  const currentHost = normalizeDomainFromUrl(student.currentUrl || "");
+  if (currentHost) {
+    domainCounts[currentHost] = (domainCounts[currentHost] || 0) + 1;
+  }
+
+  const interactions = Object.values(domainCounts).reduce((sum, count) => sum + count, 0);
+  return {
+    domainCounts,
+    interactions
+  };
+}
+
+function estimateStudentScreenTime(studentRecord) {
+  const student = studentRecord?.student || {};
+  const history = Array.isArray(student.tabHistory) ? [...student.tabHistory] : [];
+  history.sort((a, b) => (a?.at || 0) - (b?.at || 0));
+
+  const byWebsiteMs = {};
+  const now = Date.now();
+  const hardCapMs = 15 * 60 * 1000;
+
+  for (let i = 0; i < history.length; i += 1) {
+    const current = history[i];
+    const next = history[i + 1];
+    const start = Number(current?.at || 0);
+    if (!start) continue;
+
+    const fallbackEnd = Math.min(now, Number(student?.lastSeen || now));
+    const end = Number(next?.at || fallbackEnd);
+    const delta = Math.max(0, Math.min(end - start, hardCapMs));
+    if (!delta) continue;
+
+    const host = normalizeDomainFromUrl(current?.url || "");
+    if (!host) continue;
+    byWebsiteMs[host] = (byWebsiteMs[host] || 0) + delta;
+  }
+
+  if (!Object.keys(byWebsiteMs).length) {
+    const fallbackHost = normalizeDomainFromUrl(student?.currentUrl || "");
+    if (fallbackHost) {
+      const lastSeen = Number(student?.lastSeen || 0);
+      const joinedAt = Number(student?.joinedAt || 0);
+      const start = lastSeen || joinedAt;
+      if (start) {
+        const delta = Math.max(0, Math.min(now - start, 30 * 60 * 1000));
+        if (delta) byWebsiteMs[fallbackHost] = delta;
+      }
+    }
+  }
+
+  const totalMs = Object.values(byWebsiteMs).reduce((sum, value) => sum + value, 0);
+  return {
+    totalMs,
+    byWebsiteMs
+  };
+}
+
+function formatDuration(ms) {
+  const safe = Math.max(0, Number(ms || 0));
+  const totalMinutes = Math.round(safe / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (!hours) return `${minutes}m`;
+  return `${hours}h ${minutes}m`;
+}
+
+function renderSummaryStat(container, label, value) {
+  const box = document.createElement("div");
+  box.className = "district-summary-stat";
+  box.innerHTML = `
+    <span>${label}</span>
+    <strong>${value}</strong>
+  `;
+  container.appendChild(box);
+}
+
+function renderBarsList(container, items, formatter) {
+  container.innerHTML = "";
+  if (!items.length) {
+    container.innerHTML = '<p class="admin-empty">No data available for this scope.</p>';
+    return;
+  }
+
+  const maxValue = Math.max(...items.map((item) => Number(item.value || 0)), 1);
+  items.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "district-bar-row";
+    const width = Math.max(4, Math.round((Number(item.value || 0) / maxValue) * 100));
+    row.innerHTML = `
+      <div class="district-bar-head">
+        <strong>${item.label}</strong>
+        <span>${formatter(item.value)}</span>
+      </div>
+      <div class="district-bar-track"><div class="district-bar-fill" style="width:${width}%"></div></div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function renderDistrictInsights() {
+  if (!adminContext) return;
+  const students = getScopedDistrictStudents();
+
+  const siteCounts = {};
+  const studentActivityRows = [];
+
+  students.forEach((entry) => {
+    const activity = summarizeStudentActivity(entry);
+    Object.entries(activity.domainCounts).forEach(([host, count]) => {
+      siteCounts[host] = (siteCounts[host] || 0) + count;
+    });
+    studentActivityRows.push({
+      key: entry.key,
+      label: `${entry.displayName} · ${entry.className}`,
+      value: activity.interactions,
+      email: entry.email
+    });
+  });
+
+  const topSites = Object.entries(siteCounts)
+    .map(([host, count]) => ({ label: host, value: count }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10);
+
+  const topStudents = studentActivityRows
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 12);
+
+  const onlineStudents = students.filter((entry) => !isStudentOffline(entry.student)).length;
+  districtActivitySummary.innerHTML = "";
+  renderSummaryStat(districtActivitySummary, "Students", students.length);
+  renderSummaryStat(districtActivitySummary, "Online", onlineStudents);
+  renderSummaryStat(
+    districtActivitySummary,
+    "Tracked Sites",
+    Object.keys(siteCounts).length
+  );
+
+  renderBarsList(districtTopSitesList, topSites, (value) => `${value} visits`);
+  renderBarsList(districtTopStudentsList, topStudents, (value) => `${value} actions`);
+
+  districtScreenTimeCache = students.map((entry) => {
+    const screenTime = estimateStudentScreenTime(entry);
+    return {
+      key: entry.key,
+      className: entry.className,
+      studentId: entry.studentId,
+      displayName: entry.displayName,
+      email: entry.email,
+      lastSeen: Number(entry.student?.lastSeen || 0),
+      totalMs: screenTime.totalMs,
+      byWebsiteMs: screenTime.byWebsiteMs
+    };
+  }).sort((a, b) => b.totalMs - a.totalMs);
+
+  renderDistrictScreenTimeOverview();
+  renderDistrictStudentScreenTimeList();
+  renderSelectedDistrictStudentDetail();
+}
+
+function renderDistrictScreenTimeOverview() {
+  if (!districtScreentimeSummary || !districtScreentimeChart) return;
+
+  const totalMs = districtScreenTimeCache.reduce((sum, item) => sum + item.totalMs, 0);
+  const activeStudents = districtScreenTimeCache.filter((item) => item.totalMs > 0).length;
+  const avgMs = districtScreenTimeCache.length ? Math.round(totalMs / districtScreenTimeCache.length) : 0;
+
+  districtScreentimeSummary.innerHTML = "";
+  renderSummaryStat(districtScreentimeSummary, "Total Screen Time", formatDuration(totalMs));
+  renderSummaryStat(districtScreentimeSummary, "Avg Per Student", formatDuration(avgMs));
+  renderSummaryStat(districtScreentimeSummary, "Students With Activity", String(activeStudents));
+
+  const top = districtScreenTimeCache
+    .filter((item) => item.totalMs > 0)
+    .slice(0, 12)
+    .map((item) => ({ label: item.displayName, value: item.totalMs }));
+  renderBarsList(districtScreentimeChart, top, (value) => formatDuration(value));
+}
+
+function renderDistrictStudentScreenTimeList() {
+  if (!districtStudentsList) return;
+  const query = String(districtScreentimeSearch?.value || "").trim().toLowerCase();
+
+  const rows = districtScreenTimeCache.filter((item) => {
+    if (!query) return true;
+    return item.displayName.toLowerCase().includes(query) || item.email.toLowerCase().includes(query);
+  });
+
+  districtStudentsList.innerHTML = "";
+  if (!rows.length) {
+    districtStudentsList.innerHTML = '<p class="admin-empty">No students match this search.</p>';
+    return;
+  }
+
+  rows.forEach((item) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = `district-student-row ${selectedDistrictStudentKey === item.key ? "active" : ""}`;
+    row.innerHTML = `
+      <div class="district-student-row-main">
+        <strong>${item.displayName}</strong>
+        <span>${item.email || "No email"} · ${item.className}</span>
+      </div>
+      <span class="district-student-row-time">${formatDuration(item.totalMs)}</span>
+    `;
+    row.addEventListener("click", () => {
+      selectedDistrictStudentKey = item.key;
+      renderDistrictStudentScreenTimeList();
+      renderSelectedDistrictStudentDetail();
+    });
+    districtStudentsList.appendChild(row);
+  });
+}
+
+function renderSelectedDistrictStudentDetail() {
+  if (!districtStudentDetail || !districtStudentDetailTitle || !districtStudentDetailSummary || !districtStudentScreentimeChart || !districtStudentWebsiteTimes) {
+    return;
+  }
+
+  if (!selectedDistrictStudentKey) {
+    districtStudentDetail.classList.add("hidden");
+    return;
+  }
+
+  const selected = districtScreenTimeCache.find((item) => item.key === selectedDistrictStudentKey);
+  if (!selected) {
+    districtStudentDetail.classList.add("hidden");
+    return;
+  }
+
+  districtStudentDetail.classList.remove("hidden");
+  districtStudentDetailTitle.textContent = `${selected.displayName} · Screen Time`;
+  districtStudentDetailSummary.innerHTML = "";
+  renderSummaryStat(districtStudentDetailSummary, "Total", formatDuration(selected.totalMs));
+  renderSummaryStat(districtStudentDetailSummary, "Last Seen", selected.lastSeen ? new Date(selected.lastSeen).toLocaleString() : "Unknown");
+  renderSummaryStat(districtStudentDetailSummary, "Websites", String(Object.keys(selected.byWebsiteMs).length));
+
+  const siteRows = Object.entries(selected.byWebsiteMs)
+    .map(([host, ms]) => ({ label: host, value: ms }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 20);
+
+  renderBarsList(districtStudentScreentimeChart, siteRows, (value) => formatDuration(value));
+
+  districtStudentWebsiteTimes.innerHTML = "";
+  if (!siteRows.length) {
+    districtStudentWebsiteTimes.innerHTML = '<p class="admin-empty">No website screen-time data yet.</p>';
+    return;
+  }
+
+  siteRows.forEach((row) => {
+    const item = document.createElement("div");
+    item.className = "district-website-time-row";
+    item.innerHTML = `<span>${row.label}</span><strong>${formatDuration(row.value)}</strong>`;
+    districtStudentWebsiteTimes.appendChild(item);
   });
 }
 
@@ -1037,6 +1461,7 @@ function renderDistrictList() {
       openBtn.disabled = adminContext.activeDistrictId === districtId;
       openBtn.addEventListener("click", () => {
         adminContext.activeDistrictId = districtId;
+        selectedDistrictStudentKey = null;
         managedClassroomId = null;
         classRefPath = "";
         classroomData = null;
@@ -1053,6 +1478,7 @@ function renderDistrictList() {
         renderDistrictCode();
         renderDistrictSettingsPanel();
         watchDistrictLogs();
+        renderDistrictInsights();
       });
 
       controls.appendChild(teachersBtn);
@@ -1272,7 +1698,17 @@ function watchClassroom() {
   });
 }
 
+function isStudentOffline(student) {
+  const lastSeen = Number(student?.lastSeen || 0);
+  if (!lastSeen) return true;
+  return (Date.now() - lastSeen) > STUDENT_OFFLINE_TIMEOUT_MS;
+}
+
 function getScreenPreviewMarkup(student, fallbackLabel = "Preview unavailable for this tab.") {
+  if (isStudentOffline(student)) {
+    return '<div class="screen-offline-box">Student Offline</div>';
+  }
+
   if (student.lastScreenshot) {
     return `<img src="${student.lastScreenshot}" alt="${student.displayName || "Student"}">`;
   }
@@ -1286,6 +1722,17 @@ function getScreenPreviewMarkup(student, fallbackLabel = "Preview unavailable fo
 }
 
 function setScreenModalPreview(student) {
+  if (isStudentOffline(student)) {
+    screenModalImage.src = "";
+    screenModalImage.alt = "Student Offline";
+    screenModalImage.classList.add("preview-unavailable", "preview-offline");
+    screenModalOfflinePlaceholder?.classList.remove("hidden");
+    return;
+  }
+
+  screenModalOfflinePlaceholder?.classList.add("hidden");
+  screenModalImage.classList.remove("preview-offline");
+
   if (student.lastScreenshot) {
     screenModalImage.src = student.lastScreenshot;
     screenModalImage.alt = student.displayName || "Student screen";
@@ -1348,13 +1795,36 @@ function renderClassroomViews() {
     const screenCard = document.createElement("div");
     screenCard.className = "screen-card";
     const activeTab = Array.isArray(student.openTabs) ? student.openTabs.find((tab) => tab?.active) : null;
+    const tabCount = Array.isArray(student.openTabs) ? student.openTabs.length : 0;
+    const isOffline = isStudentOffline(student);
+    const studentName = student.displayName || "Student";
+    const initials = studentName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || "")
+      .join("") || "S";
+
     screenCard.innerHTML = `
+      <div class="screen-card-head">
+        <div class="screen-card-student">
+          <span class="screen-avatar">${initials}</span>
+          <div class="screen-card-student-meta">
+            <strong>${studentName}</strong>
+            <small>${isOffline ? "Offline" : "Online"}</small>
+          </div>
+        </div>
+        <span class="screen-card-menu">⋮</span>
+      </div>
       ${getScreenPreviewMarkup(student)}
       <div class="screen-meta">
-        <strong>${student.displayName || "Student"}</strong><br>
         <small>${student.email || "No email"}</small>
         ${viewingAllClassrooms ? `<div class="screen-tabs-preview">${className}</div>` : ""}
         <div class="screen-tabs-preview">${activeTab?.title || student.currentUrl || "No active tab info yet"}</div>
+        <div class="screen-chip-row">
+          <span class="screen-chip">${viewingAllClassrooms ? className : "Live Screen"}</span>
+          <span class="screen-chip muted">${tabCount} tab${tabCount === 1 ? "" : "s"}</span>
+        </div>
       </div>
     `;
     screenCard.addEventListener("click", () => openScreenModal(studentId, classId, student, className));
@@ -1421,6 +1891,7 @@ function renderClassroomViews() {
     : null;
 
   blockedDomainsInput.disabled = viewingAllClassrooms;
+  teacherWatchVisibilityToggle.disabled = viewingAllClassrooms;
   alwaysAllowedLinksInput.disabled = viewingAllClassrooms;
   blockedCategoriesSelect.disabled = viewingAllClassrooms || isTeacher;
   settingsClassNameInput.disabled = viewingAllClassrooms;
@@ -1432,6 +1903,7 @@ function renderClassroomViews() {
     : (settings.testModeEnabled ? "Test Mode On" : "Test Mode");
   settingsClassNameInput.value = viewingAllClassrooms ? "" : (classroomData?.className || "");
   settingsClassTypeInput.value = viewingAllClassrooms ? "Other" : (classroomData?.classType || "Other");
+  teacherWatchVisibilityToggle.checked = viewingAllClassrooms ? false : Boolean(settings.showScreenWatchStatus);
   const visibleDomains = isTeacher && districtBlockedDomains
     ? districtBlockedDomains
     : (settings.blockedDomains || []);
@@ -1712,6 +2184,7 @@ async function createClassFromPicker() {
       blockedDomains: [],
       blockedCategories: [],
       allowedLinks: [RESTRICTED_DISTRICT_DOMAIN],
+      showScreenWatchStatus: false,
       testModeEnabled: false,
       testModeAllowedLinks: []
     },
@@ -2109,6 +2582,7 @@ async function saveClassroomSettings() {
     .map((link) => normalizeAllowedLinkEntry(link))
     .filter(Boolean)
     .concat(RESTRICTED_DISTRICT_DOMAIN)));
+  const showScreenWatchStatus = Boolean(teacherWatchVisibilityToggle.checked);
 
   const isTeacher = userProfile?.role === "teacher";
 
@@ -2124,6 +2598,12 @@ async function saveClassroomSettings() {
       statusBanner.textContent = "No district assigned for global blocked links.";
       return;
     }
+
+    await update(ref(db, `${classRefPath}/settings`), {
+      showScreenWatchStatus,
+      updatedAt: Date.now(),
+      updatedBy: currentUser?.uid || null
+    });
 
     const districtSettingsSnap = await get(ref(db, `districts/${districtId}/settings`));
     const districtSettings = districtSettingsSnap.val() || {};
@@ -2162,6 +2642,7 @@ async function saveClassroomSettings() {
   await update(ref(db, `${classRefPath}/settings`), {
     blockedDomains: domains,
     allowedLinks,
+    showScreenWatchStatus,
     blockedCategories: categories,
     updatedAt: Date.now()
   });
@@ -2284,14 +2765,9 @@ function generateJoinCode() {
   return code;
 }
 
-function shouldFallbackToRedirect(error) {
-  const code = error?.code || "";
-  return code === "auth/popup-blocked" || code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request";
-}
-
 function setAuthError(error) {
   const code = error?.code || "unknown";
-  const message = error?.message || "Google sign-in failed.";
+  const message = error?.message || "Authentication failed.";
   setAuthMessage(`${message} (${code})`);
 }
 

@@ -311,6 +311,226 @@ p {
     linear-gradient(180deg, #c7d2fe, #93c5fd);
 }
 
+/* Auth (GoGuardian-inspired hero refresh) */
+.auth-shell {
+  min-height: 100vh;
+  padding: 0;
+  background: linear-gradient(140deg, #042a78 0%, #0b3f9a 45%, #0a2f7f 100%);
+}
+
+.auth-topbar {
+  height: 72px;
+  background: #ffffff;
+  border-bottom: 1px solid #d7deea;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 22px;
+}
+
+.auth-brand {
+  position: static;
+}
+
+.auth-brand-text {
+  font-size: 34px;
+  color: #0f172a;
+}
+
+.auth-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-top-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 2px solid #0b2659;
+  color: #0b2659;
+  background: #fff;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.auth-top-btn.primary {
+  border-color: #1d67d8;
+  background: #1d67d8;
+  color: #fff;
+}
+
+.auth-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(460px, 0.95fr);
+  align-items: center;
+  gap: 16px;
+  width: min(1500px, 96vw);
+  margin: 0 auto;
+  padding: 44px 10px 24px;
+}
+
+.auth-copy {
+  align-items: flex-start;
+  justify-content: center;
+  padding: 10px 20px;
+}
+
+.auth-kicker {
+  color: #ffffff;
+  font-size: clamp(42px, 5.2vw, 78px);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.auth-kicker span {
+  color: #8ab6ff;
+  font-style: italic;
+  font-family: "Sora", sans-serif;
+}
+
+.auth-copy h1 {
+  color: #ffffff;
+  font-size: clamp(42px, 6.5vw, 82px);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  margin-top: 8px;
+  max-width: 760px;
+}
+
+.auth-subtitle {
+  margin-top: 22px;
+  color: rgba(240, 247, 255, 0.98);
+  font-size: clamp(18px, 1.9vw, 34px);
+  max-width: 840px;
+  line-height: 1.32;
+}
+
+.auth-cta-row {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.auth-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-weight: 800;
+  text-decoration: none;
+  padding: 10px 18px;
+  min-height: 46px;
+}
+
+.auth-cta.primary {
+  background: #ffd447;
+  color: #101828;
+}
+
+.auth-cta.ghost {
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.auth-card {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+}
+
+.auth-device-stack {
+  position: relative;
+  width: min(760px, 100%);
+  height: 420px;
+}
+
+.auth-device {
+  position: absolute;
+  object-fit: contain;
+  border-radius: 18px;
+  box-shadow: 0 22px 60px rgba(1, 10, 26, 0.45);
+}
+
+.auth-device-main {
+  width: 70%;
+  top: 0;
+  left: 12%;
+}
+
+.auth-device-laptop {
+  width: 56%;
+  bottom: 4px;
+  right: -2px;
+}
+
+.auth-device-phone {
+  width: 18%;
+  bottom: -4px;
+  left: 10%;
+}
+
+.auth-login-panel {
+  width: min(720px, 96vw);
+  margin: 0 auto 28px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d4deeb;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 18px 34px rgba(2, 10, 28, 0.22);
+}
+
+.auth-login-panel h2 {
+  font-size: 30px;
+  margin-bottom: 4px;
+}
+
+.auth-login-panel p {
+  color: #475569;
+  margin-bottom: 10px;
+}
+
+.auth-login-panel label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 10px;
+}
+
+.auth-email-input {
+  font-size: 18px;
+  border-radius: 10px;
+}
+
+.auth-login-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.auth-email-btn {
+  width: auto;
+  border-color: #1459c6;
+  background: #1459c6;
+  color: #fff;
+  font-size: 16px;
+  padding: 11px 16px;
+}
+
+.auth-email-btn.secondary {
+  background: #ffffff;
+  color: #1459c6;
+}
+
 .welcome-overlay {
   position: fixed;
   inset: 0;
@@ -436,10 +656,10 @@ p {
 }
 
 .sidebar {
-  background: linear-gradient(180deg, #1f2d3a, #1a2733);
+  background: linear-gradient(180deg, #13293f 0%, #0f2337 46%, #10263b 100%);
   color: #d7e3f1;
-  border-right: 1px solid #1b2733;
-  padding: 18px 12px;
+  border-right: 1px solid #1a334e;
+  padding: 14px 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -449,39 +669,89 @@ p {
 }
 
 .sidebar-title {
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #8fa1b3;
+  color: #9bb2cb;
   margin-bottom: 8px;
+  padding: 0 8px;
 }
 
 .tab-btn {
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: #d7e3f1;
-  padding: 10px 12px;
+  padding: 9px 12px;
   cursor: pointer;
   text-align: left;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 14px;
   transition: background 0.18s ease, border-color 0.18s ease;
 }
 
 .tab-btn:hover {
-  background: #2d3d4d;
+  background: #27435e;
 }
 
 .tab-btn.active {
-  background: #2f80ed;
-  border-color: #2f80ed;
+  background: #2e7fd8;
+  border-color: #2e7fd8;
   color: #ffffff;
 }
 
 .content {
-  padding: 24px;
-  width: min(1320px, 100%);
+  padding: 20px;
+  width: min(1500px, 100%);
   margin: 0 auto;
+}
+
+.teacher-session-card {
+  padding: 14px 16px 10px;
+  border-radius: 8px;
+  border-color: #d7e1ee;
+  box-shadow: none;
+}
+
+.teacher-session-top h3 {
+  margin: 0;
+  font-size: 28px;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.teacher-end-session-btn {
+  border-color: #d83b3b;
+  color: #b42318;
+  background: #fff;
+}
+
+.teacher-view-tabs {
+  margin-top: 14px;
+  border-bottom: 1px solid #d8e1ee;
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+}
+
+.teacher-view-tab {
+  border: 0;
+  background: transparent;
+  padding: 0 2px 10px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #4b5563;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.teacher-view-tab.active {
+  color: #1f6ed6;
+  border-bottom-color: #1f6ed6;
+}
+
+.teacher-tools-row {
+  margin-top: 12px;
 }
 
 .class-picker-page {
@@ -626,30 +896,95 @@ p {
 /* Screens + Students */
 .screens-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
 }
 
 .screen-card {
-  border: 1px solid #dbe5f0;
-  border-radius: 14px;
+  border: 1px solid #d7e1ee;
+  border-radius: 6px;
   overflow: hidden;
   background: #fff;
   cursor: pointer;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
-  transition: transform 0.16s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  transition: transform 0.14s ease, box-shadow 0.18s ease;
 }
 
 .screen-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 30px rgba(16, 35, 63, 0.16);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(16, 35, 63, 0.16);
+}
+
+.screen-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e4ebf5;
+  background: #fff;
+}
+
+.screen-card-student {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.screen-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 10px;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.screen-card-student-meta {
+  display: grid;
+  min-width: 0;
+}
+
+.screen-card-student-meta strong {
+  font-size: 12px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.screen-card-student-meta small {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.screen-card-menu {
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .screen-card img {
   width: 100%;
-  height: 166px;
+  height: 122px;
   object-fit: cover;
   background: var(--bg-2);
+}
+
+.screen-offline-box {
+  width: 100%;
+  height: 122px;
+  display: grid;
+  place-items: center;
+  background: #e5e7eb;
+  color: #6b7280;
+  font-weight: 700;
+  font-size: 16px;
 }
 
 .screen-unavailable {
@@ -675,17 +1010,42 @@ p {
 }
 
 .screen-meta {
-  padding: 12px;
-  font-size: 14px;
+  padding: 8px 10px 10px;
+  font-size: 12px;
 }
 
 .screen-tabs-preview {
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 12px;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.screen-chip-row {
+  margin-top: 7px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.screen-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #cddbed;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #1f4f87;
+  background: #f4f9ff;
+}
+
+.screen-chip.muted {
+  color: #5b6675;
+  background: #f8fafc;
+  border-color: #d6dde8;
 }
 
 .student-row {
@@ -747,6 +1107,485 @@ p {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.district-admin-shell {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  min-height: calc(100vh - 150px);
+  border: 1px solid #d3dceb;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+}
+
+.district-admin-nav {
+  background: linear-gradient(180deg, #071a34 0%, #0a2749 38%, #091d34 100%);
+  color: #d9e9ff;
+  border-right: 1px solid #0f3056;
+  padding: 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.district-admin-org {
+  margin: 0 10px 6px;
+  border: 1px solid rgba(177, 206, 255, 0.45);
+  background: rgba(11, 41, 77, 0.95);
+  color: #f8fbff;
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 15px;
+  text-align: left;
+}
+
+.district-admin-org img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+.district-admin-nav-group {
+  border-top: 1px solid rgba(150, 180, 220, 0.16);
+  padding: 8px 10px 0;
+}
+
+.district-admin-nav-group h4 {
+  font-size: 22px;
+  font-family: "Space Grotesk", sans-serif;
+  margin: 8px 10px;
+  color: #f0f7ff;
+  font-weight: 700;
+}
+
+.district-admin-nav-link {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #d3e3fb;
+  text-align: left;
+  padding: 8px 16px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.district-admin-nav-link:hover {
+  background: rgba(69, 137, 226, 0.22);
+}
+
+.district-admin-nav-link.active {
+  background: #0062b8;
+  color: #ffffff;
+}
+
+.district-admin-main {
+  padding: 24px 30px;
+  background: #ffffff;
+}
+
+.district-admin-page-header h2 {
+  font-size: 44px;
+  line-height: 1.08;
+  margin-bottom: 8px;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.district-admin-page-header p {
+  color: #1f2937;
+  font-size: 16px;
+}
+
+.district-admin-toolbar {
+  margin-top: 26px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.district-admin-toolbar-left,
+.district-admin-toolbar-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.district-admin-toolbar-left .btn.primary {
+  background: #0066b8;
+  border-radius: 4px;
+  padding: 12px 18px;
+  font-size: 16px;
+}
+
+.district-admin-toolbar-left .btn {
+  border-radius: 4px;
+  padding: 11px 16px;
+  font-size: 16px;
+}
+
+.district-admin-toolbar-right select,
+.district-admin-toolbar-right input {
+  margin: 0;
+  border-radius: 0;
+  height: 48px;
+  border-color: #d1dae8;
+  font-size: 18px;
+}
+
+.district-admin-toolbar-right select {
+  width: 236px;
+}
+
+.district-admin-toolbar-right input {
+  width: min(360px, 62vw);
+}
+
+.district-admin-toolbar-right .btn {
+  border-radius: 0;
+  height: 48px;
+  min-width: 52px;
+}
+
+.district-admin-state-tabs {
+  display: flex;
+  gap: 28px;
+  margin-top: 28px;
+  border-bottom: 1px solid #d9e2ef;
+}
+
+.district-admin-state-tab {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: #111827;
+  font-size: 21px;
+  font-family: "Space Grotesk", sans-serif;
+  padding: 0 0 12px;
+  cursor: pointer;
+}
+
+.district-admin-state-tab.active {
+  color: #006ec7;
+  border-bottom-color: #006ec7;
+}
+
+.district-admin-state-tab span {
+  font: inherit;
+}
+
+.district-admin-meta-row {
+  margin-top: 26px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.district-admin-meta-row .btn {
+  border-radius: 4px;
+  padding: 10px 16px;
+  font-size: 16px;
+}
+
+.district-admin-pagination {
+  border: 1px solid #d5deeb;
+  background: #ffffff;
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 16px;
+  color: #243447;
+}
+
+.district-admin-content-grid {
+  margin-top: 14px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.district-admin-table-card,
+.district-admin-settings-card {
+  border-radius: 4px;
+  box-shadow: none;
+  border-color: #d5deeb;
+}
+
+.district-admin-table-wide {
+  grid-column: 1 / -1;
+}
+
+.district-admin-main .admin-panel-head {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #dce4ef;
+}
+
+.district-admin-main .admin-panel-head h3 {
+  font-size: 20px;
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.district-admin-table-list {
+  max-height: 300px;
+  border: 1px solid #dbe3ee;
+  border-radius: 4px;
+  padding: 0;
+  gap: 0;
+  background: #ffffff;
+}
+
+.district-admin-table-list .admin-empty {
+  border: 0;
+  border-radius: 0;
+}
+
+.district-admin-table-list .admin-row {
+  border: 0;
+  border-bottom: 1px solid #edf2f7;
+  border-radius: 0;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.district-admin-table-list .admin-row:hover {
+  background: #f7fbff;
+}
+
+.district-admin-table-list .admin-row-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.district-admin-table-list .admin-row-subtitle {
+  font-size: 12px;
+}
+
+.district-admin-settings-card label {
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.district-admin-settings-card textarea,
+.district-admin-settings-card select {
+  border-radius: 4px;
+  border-color: #d4dce8;
+}
+
+.district-admin-settings-card .district-toggle-row {
+  border-radius: 4px;
+  background: #f8fbff;
+}
+
+.district-insights-tabs {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid #dce4ef;
+}
+
+.district-insights-tab {
+  border: 0;
+  background: transparent;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0 2px 10px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.district-insights-tab.active {
+  color: #0f5fb7;
+  border-bottom-color: #0f5fb7;
+}
+
+.district-insights-panel {
+  margin-top: 14px;
+}
+
+.district-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.district-insights-card {
+  border-radius: 6px;
+  border-color: #d8e1ee;
+  box-shadow: none;
+}
+
+.district-insights-card-wide {
+  grid-column: 1 / -1;
+}
+
+.district-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.district-summary-stat {
+  border: 1px solid #dbe4ef;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fbfdff;
+  display: grid;
+  gap: 4px;
+}
+
+.district-summary-stat span {
+  color: #64748b;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.district-summary-stat strong {
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.district-bars-list {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.district-bar-row {
+  display: grid;
+  gap: 5px;
+}
+
+.district-bar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.district-bar-head strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.district-bar-head span {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 700;
+}
+
+.district-bar-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e7edf5;
+  overflow: hidden;
+}
+
+.district-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1f7bd9, #3b82f6);
+}
+
+.district-students-list {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.district-student-row {
+  width: 100%;
+  border: 1px solid #d8e2ef;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.district-student-row:hover {
+  background: #f8fbff;
+}
+
+.district-student-row.active {
+  border-color: #60a5fa;
+  background: #eff6ff;
+}
+
+.district-student-row-main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.district-student-row-main strong {
+  font-size: 14px;
+}
+
+.district-student-row-main span {
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.district-student-row-time {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.district-website-times {
+  margin-top: 12px;
+  border: 1px solid #d8e2ef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.district-website-time-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #edf2f8;
+}
+
+.district-website-time-row:last-child {
+  border-bottom: 0;
+}
+
+.district-website-time-row span {
+  color: #334155;
+  font-size: 13px;
+}
+
+.district-website-time-row strong {
+  color: #0f172a;
+  font-size: 13px;
 }
 
 .admin-panel-card {
@@ -1079,6 +1918,7 @@ select:focus {
 }
 
 .screen-modal-left {
+  position: relative;
   background: #0b1220;
   border-radius: 12px;
   padding: 10px;
@@ -1160,6 +2000,22 @@ select:focus {
   min-height: 320px;
   background: linear-gradient(180deg, #e2e8f0, #cbd5e1);
   border: 1px solid var(--line);
+}
+
+#screen-modal-image.preview-offline {
+  visibility: hidden;
+}
+
+.screen-modal-offline-placeholder {
+  position: absolute;
+  inset: 10px;
+  border-radius: 10px;
+  background: #e5e7eb;
+  color: #6b7280;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  font-weight: 700;
 }
 
 .tabs-panel {
@@ -1370,6 +2226,39 @@ select:focus {
   .tab-btn {
     min-width: 118px;
   }
+
+  .district-admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .district-admin-nav {
+    border-right: 0;
+    border-bottom: 1px solid #0f3056;
+  }
+
+  .district-admin-main {
+    padding: 16px;
+  }
+
+  .district-admin-page-header h2 {
+    font-size: 34px;
+  }
+
+  .district-admin-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .district-admin-table-wide {
+    grid-column: auto;
+  }
+
+  .district-insights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .district-insights-card-wide {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 700px) {
@@ -1464,5 +2353,47 @@ select:focus {
 
   .approve-select {
     width: 100%;
+  }
+
+  .district-admin-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .district-admin-toolbar-left,
+  .district-admin-toolbar-right {
+    width: 100%;
+  }
+
+  .district-admin-toolbar-right select,
+  .district-admin-toolbar-right input,
+  .district-admin-toolbar-right .btn {
+    width: 100%;
+  }
+
+  .district-admin-state-tabs {
+    gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .district-admin-state-tab {
+    font-size: 18px;
+    white-space: nowrap;
+  }
+
+  .district-admin-meta-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .district-insights-tabs {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .district-student-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

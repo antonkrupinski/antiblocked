@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AntiBlocked</title>
-  <link rel="icon" type="image/png" href="../extension/antiblocked.png">
+  <link rel="icon" type="image/png" href="https://media.discordapp.net/attachments/1481400882464555242/1550636850660515851/antiblocked-logo.png?ex=6aaf0e9a&is=6aadbd1a&hm=fe86506fbddbaad2894cb32f2a5bf1a51f4f9437324fcb8db06d277052d03bd3&=&format=webp&quality=lossless&width=1520&height=1520">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@500;700&display=swap" rel="stylesheet">
@@ -12,43 +12,54 @@
 </head>
 <body>
   <div id="auth-view" class="auth-shell">
-    <div class="auth-brand">
-      <img class="auth-brand-logo" src="../extension/antiblocked.png" alt="AntiBlocked logo">
-      <span class="auth-brand-text">AntiBlocked</span>
-    </div>
+    <header class="auth-topbar">
+      <div class="auth-brand">
+        <img class="auth-brand-logo" src="../extension/antiblocked.png" alt="AntiBlocked logo">
+        <span class="auth-brand-text">AntiBlocked</span>
+      </div>
+      <div class="auth-topbar-actions">
+        <button id="auth-top-signin-btn" class="auth-top-btn" type="button">Sign in</button>
+        <a id="contact-sales-btn" class="auth-top-btn primary" href="./contact-sales.html">Contact sales</a>
+      </div>
+    </header>
 
-    <div class="auth-container">
+    <div class="auth-hero">
       <section class="auth-copy">
-        <div class="auth-login-card" aria-label="Sign in panel">
-          <h1>Welcome to AntiBlocked</h1>
+        <p class="auth-kicker">#1 for <span>outcomes</span> in</p>
+        <h1>student safety and productivity</h1>
+        <p class="auth-subtitle">
+          AntiBlocked helps districts create safer schools, empowered teachers,
+          and thriving students with modern classroom visibility.
+        </p>
 
-          <button id="google-login-btn" class="auth-provider-btn auth-google-btn" type="button">
-            <span>G</span>
-            <span>Log in with Google</span>
-          </button>
-
-          <div class="auth-divider"><span>OR</span></div>
-
-          <input class="auth-email-input" type="email" placeholder="Enter your email address" aria-label="Email address">
-          <button class="auth-email-btn" type="button" disabled>Continue with email</button>
-
-          <p id="auth-status"></p>
-
-          <p class="auth-signup-note">Don’t have an account? <a href="#" onclick="return false;">Sign up</a></p>
+        <div class="auth-cta-row">
+          <a class="auth-cta primary" href="./contact-sales.html">Connect with sales</a>
+          <a class="auth-cta ghost" href="#auth-login-card">Explore products</a>
         </div>
-
-        <p class="auth-terms">Terms of Service and Privacy Policy.</p>
       </section>
 
       <section class="auth-card" aria-hidden="true">
-        <div class="auth-art auth-art-top"></div>
-        <div class="auth-art auth-art-grid">
-          <p>72%<br><span>Account Health</span></p>
+        <div class="auth-device-stack">
+          <img src="../extension/antiblocked.png" alt="AntiBlocked interface preview" class="auth-device auth-device-main">
+          <img src="../extension/antiblocked.png" alt="AntiBlocked interface preview" class="auth-device auth-device-laptop">
+          <img src="../extension/antiblocked.png" alt="AntiBlocked interface preview" class="auth-device auth-device-phone">
         </div>
-        <h2>Turn your ideas into safe classrooms<span class="dot">.</span></h2>
-        <div class="auth-art auth-art-bottom"></div>
       </section>
     </div>
+
+    <section id="auth-login-card" class="auth-login-panel" aria-label="Sign in panel">
+      <h2>Sign in to AntiBlocked</h2>
+      <p>Use email and password to access your account.</p>
+      <label for="auth-email-input">Email</label>
+      <input id="auth-email-input" class="auth-email-input" type="email" placeholder="you@school.edu" aria-label="Email address">
+      <label for="auth-password-input">Password</label>
+      <input id="auth-password-input" class="auth-email-input" type="password" placeholder="Enter password" aria-label="Password">
+      <div class="auth-login-actions">
+        <button id="auth-login-btn" class="auth-email-btn" type="button">Sign in</button>
+        <button id="auth-register-btn" class="auth-email-btn secondary" type="button">Create account</button>
+      </div>
+      <p id="auth-status"></p>
+    </section>
   </div>
 
   <div id="welcome-overlay" class="welcome-overlay hidden">
@@ -110,20 +121,34 @@
         </section>
 
         <section id="screens-tab" class="tab active">
-          <div class="card row-between">
-            <div>
-              <h3>Screens</h3>
-              <p id="class-view-label" class="form-help">Select a classroom to continue.</p>
+          <div class="card teacher-session-card">
+            <div class="teacher-session-top row-between">
+              <div>
+                <h3>Classroom Session</h3>
+                <p id="class-view-label" class="form-help">Select a classroom to continue.</p>
+              </div>
+              <button class="btn teacher-end-session-btn" type="button">End Session</button>
+            </div>
+
+            <div class="teacher-view-tabs" role="tablist" aria-label="Teacher views">
+              <button class="teacher-view-tab active" type="button">Screens</button>
+              <button class="teacher-view-tab" type="button">Timeline</button>
+              <button class="teacher-view-tab" type="button">Snapshots</button>
+              <button class="teacher-view-tab" type="button">Reports</button>
+            </div>
+
+            <div class="teacher-tools-row row-between">
               <div class="class-code-wrap">
                 <span class="class-code-label">District code</span>
                 <span id="class-code-display" class="class-code-pill">--------</span>
                 <button id="copy-class-code-btn" class="btn">Copy</button>
               </div>
-            </div>
-            <div class="picker-toolbar">
-              <button id="open-test-mode-btn" class="btn">Test Mode</button>
-              <button id="choose-classroom-btn" class="btn">Choose classroom</button>
-              <button id="refresh-screens-btn" class="btn">Refresh</button>
+
+              <div class="picker-toolbar">
+                <button id="open-test-mode-btn" class="btn">Test Mode</button>
+                <button id="choose-classroom-btn" class="btn">Choose classroom</button>
+                <button id="refresh-screens-btn" class="btn">Refresh</button>
+              </div>
             </div>
           </div>
           <div id="screens-grid" class="screens-grid"></div>
@@ -159,6 +184,11 @@
                   <option value="History">History</option>
                   <option value="Other">Other</option>
                 </select>
+
+                <div class="district-toggle-row">
+                  <label for="teacher-watch-visibility-toggle" class="district-toggle-label">Show students when teacher is watching screens</label>
+                  <input id="teacher-watch-visibility-toggle" type="checkbox" class="district-toggle-input">
+                </div>
               </div>
             </div>
 
@@ -199,116 +229,212 @@
         </section>
 
         <section id="admin-tab" class="tab">
-          <div class="admin-shell">
-            <div class="card admin-overview">
-              <div class="row-between">
-                <div>
-                  <h3>Super Admin Control Center</h3>
-                  <p>Signed in as <strong>antonkrupinski0@gmail.com</strong></p>
-                </div>
-                <button id="open-create-district-btn" class="class-plus-btn small" aria-label="Create district">+</button>
+          <div class="district-admin-shell">
+            <aside class="district-admin-nav">
+              <button class="district-admin-org" type="button">
+                <img src="../extension/antiblocked.png" alt="AntiBlocked logo">
+                <span>AntiBlocked Org Management</span>
+                <span>▾</span>
+              </button>
+
+              <div class="district-admin-nav-group">
+                <h4>User Management</h4>
+                <button type="button" class="district-admin-nav-link active">Districts</button>
+                <button type="button" class="district-admin-nav-link">Staff</button>
+                <button type="button" class="district-admin-nav-link">Parents &amp; Guardians</button>
               </div>
-              <div class="admin-stats">
-                <div class="admin-stat">
-                  <span class="admin-stat-label">Districts</span>
-                  <strong id="admin-district-count">0</strong>
+
+              <div class="district-admin-nav-group">
+                <h4>Configuration</h4>
+                <button type="button" class="district-admin-nav-link">Data Sources</button>
+                <button type="button" class="district-admin-nav-link">Installation</button>
+                <button type="button" class="district-admin-nav-link">Product Settings</button>
+              </div>
+
+              <div class="district-admin-nav-group">
+                <h4>Reporting</h4>
+                <button type="button" class="district-admin-nav-link">Logs</button>
+                <button type="button" class="district-admin-nav-link">Diagnostics</button>
+              </div>
+            </aside>
+
+            <div class="district-admin-main">
+              <div class="district-admin-page-header">
+                <h2>District Administrator Panel</h2>
+                <p>Manage users, approvals, and district-wide access policies across your AntiBlocked organization.</p>
+              </div>
+
+              <div class="district-admin-toolbar">
+                <div class="district-admin-toolbar-left">
+                  <button id="open-create-district-btn" class="btn primary">+ Add District</button>
+                  <button class="btn" type="button">Manage Roles</button>
+                  <button class="btn" type="button">⋮</button>
                 </div>
-                <div class="admin-stat">
-                  <span class="admin-stat-label">Pending approvals</span>
-                  <strong id="admin-pending-count">0</strong>
-                </div>
-                <div class="admin-stat">
-                  <span class="admin-stat-label">Teachers</span>
-                  <strong id="admin-teacher-count">0</strong>
-                </div>
-                <div class="admin-stat">
-                  <span class="admin-stat-label">Classrooms</span>
-                  <strong id="admin-classroom-count">0</strong>
+                <div class="district-admin-toolbar-right">
+                  <select aria-label="Search mode">
+                    <option>Name/Email</option>
+                  </select>
+                  <input type="text" placeholder="user@example.com" aria-label="Search users">
+                  <button class="btn" type="button">🔍</button>
                 </div>
               </div>
+
+              <div class="district-admin-state-tabs" role="tablist" aria-label="Admin state tabs">
+                <button class="district-admin-state-tab active" type="button">Active (<span id="admin-district-count">0</span>)</button>
+                <button class="district-admin-state-tab" type="button">Pending (<span id="admin-pending-count">0</span>)</button>
+                <button class="district-admin-state-tab" type="button">Teachers (<span id="admin-teacher-count">0</span>)</button>
+                <button class="district-admin-state-tab" type="button">Classrooms (<span id="admin-classroom-count">0</span>)</button>
+              </div>
+
+              <div class="district-admin-meta-row">
+                <button type="button" class="btn">⚙ Columns (0 hidden)</button>
+                <div class="district-admin-pagination">50 / page ▾</div>
+              </div>
+
+              <div class="district-insights-tabs" role="tablist" aria-label="District insights tabs">
+                <button id="district-dashboard-tab-btn" class="district-insights-tab active" type="button">Dashboard</button>
+                <button id="district-screentime-tab-btn" class="district-insights-tab" type="button">Screen Time</button>
+              </div>
+
+              <section id="district-dashboard-panel" class="district-insights-panel">
+                <div class="district-insights-grid">
+                  <article class="card district-insights-card">
+                    <div class="admin-panel-head">
+                      <h3>Student Activity Overview</h3>
+                    </div>
+                    <div id="district-activity-summary" class="district-summary-grid"></div>
+                  </article>
+
+                  <article class="card district-insights-card">
+                    <div class="admin-panel-head">
+                      <h3>Most Used Websites</h3>
+                    </div>
+                    <div id="district-top-sites-list" class="district-bars-list"></div>
+                  </article>
+
+                  <article class="card district-insights-card district-insights-card-wide">
+                    <div class="admin-panel-head">
+                      <h3>Top Active Students</h3>
+                    </div>
+                    <div id="district-top-students-list" class="district-bars-list"></div>
+                  </article>
+                </div>
+              </section>
+
+              <section id="district-screentime-panel" class="district-insights-panel hidden">
+                <div class="district-insights-grid">
+                  <article class="card district-insights-card district-insights-card-wide">
+                    <div class="admin-panel-head">
+                      <h3>District Screen Time</h3>
+                    </div>
+                    <div id="district-screentime-summary" class="district-summary-grid"></div>
+                    <div id="district-screentime-chart" class="district-bars-list"></div>
+                  </article>
+
+                  <article class="card district-insights-card district-insights-card-wide">
+                    <div class="admin-panel-head">
+                      <h3>Students</h3>
+                    </div>
+                    <input id="district-screentime-search" type="text" placeholder="Search student by name or email">
+                    <div id="district-students-list" class="district-students-list"></div>
+                  </article>
+
+                  <article id="district-student-detail" class="card district-insights-card district-insights-card-wide hidden">
+                    <div class="admin-panel-head">
+                      <h3 id="district-student-detail-title">Student Screen Time</h3>
+                    </div>
+                    <div id="district-student-detail-summary" class="district-summary-grid"></div>
+                    <div id="district-student-screentime-chart" class="district-bars-list"></div>
+                    <div id="district-student-website-times" class="district-website-times"></div>
+                  </article>
+                </div>
+              </section>
+
               <p id="district-scope" class="form-help"></p>
+
               <div id="district-code-bar" class="managed-bar hidden">
                 <span id="district-code-label">District join code</span>
                 <button id="copy-district-code-btn" class="btn">Copy code</button>
                 <button id="regenerate-district-code-btn" class="btn">Regenerate</button>
               </div>
+
               <div id="managed-classroom-bar" class="managed-bar hidden">
                 <span id="managed-classroom-label">Managing classroom</span>
                 <button id="close-managed-classroom-btn" class="btn">Close classroom</button>
               </div>
-            </div>
 
-            <div class="admin-grid">
-              <div class="card admin-panel-card">
-                <div class="admin-panel-head">
-                  <h3>Districts</h3>
-                </div>
-                <div id="district-list" class="admin-list"></div>
-              </div>
+              <div class="district-admin-content-grid">
+                <section class="card district-admin-table-card">
+                  <div class="admin-panel-head">
+                    <h3>Districts</h3>
+                  </div>
+                  <div id="district-list" class="admin-list district-admin-table-list"></div>
+                </section>
 
-              <div class="card admin-panel-card">
-                <div class="admin-panel-head">
-                  <h3>Pending Teacher Approvals</h3>
-                </div>
-                <div id="pending-teachers" class="admin-list"></div>
-              </div>
+                <section class="card district-admin-table-card">
+                  <div class="admin-panel-head">
+                    <h3>Pending Teacher Approvals</h3>
+                  </div>
+                  <div id="pending-teachers" class="admin-list district-admin-table-list"></div>
+                </section>
 
-              <div class="card admin-panel-card admin-panel-wide">
-                <div class="admin-panel-head">
-                  <h3>District Classrooms</h3>
-                </div>
-                <div id="district-classrooms" class="admin-list"></div>
-              </div>
+                <section class="card district-admin-table-card district-admin-table-wide">
+                  <div class="admin-panel-head">
+                    <h3>District Classrooms</h3>
+                  </div>
+                  <div id="district-classrooms" class="admin-list district-admin-table-list"></div>
+                </section>
 
-              <div class="card admin-panel-card admin-panel-wide">
-                <div class="admin-panel-head">
-                  <h3>District Settings · Global Blocking</h3>
-                  <p class="form-help">These settings apply across the selected district.</p>
-                </div>
+                <section class="card district-admin-settings-card district-admin-table-wide">
+                  <div class="admin-panel-head">
+                    <h3>District Settings · Global Blocking</h3>
+                    <p class="form-help">These settings apply across the selected district.</p>
+                  </div>
 
-                <label>Blocked domains (comma-separated)</label>
-                <textarea id="district-blocked-domains" rows="3" placeholder="example.com, youtube.com"></textarea>
+                  <label>Blocked domains (comma-separated)</label>
+                  <textarea id="district-blocked-domains" rows="3" placeholder="example.com, youtube.com"></textarea>
 
-                <label>Blocked categories</label>
-                <select id="district-blocked-categories" class="category-dropdown" multiple size="10">
-                  <option value="social">Social Media</option>
-                  <option value="games">Games</option>
-                  <option value="adult">Adult Content</option>
-                  <option value="streaming">Streaming Video</option>
-                  <option value="shopping">Shopping</option>
-                  <option value="chat">Chat & Messaging</option>
-                  <option value="news">News</option>
-                  <option value="sports">Sports</option>
-                  <option value="music">Music</option>
-                  <option value="ai-tools">AI Tools</option>
-                  <option value="vpn-proxy">VPN/Proxy</option>
-                  <option value="gambling">Gambling</option>
-                </select>
+                  <label>Blocked categories</label>
+                  <select id="district-blocked-categories" class="category-dropdown" multiple size="10">
+                    <option value="social">Social Media</option>
+                    <option value="games">Games</option>
+                    <option value="adult">Adult Content</option>
+                    <option value="streaming">Streaming Video</option>
+                    <option value="shopping">Shopping</option>
+                    <option value="chat">Chat &amp; Messaging</option>
+                    <option value="news">News</option>
+                    <option value="sports">Sports</option>
+                    <option value="music">Music</option>
+                    <option value="ai-tools">AI Tools</option>
+                    <option value="vpn-proxy">VPN/Proxy</option>
+                    <option value="gambling">Gambling</option>
+                  </select>
 
-                <div class="district-toggle-row">
-                  <label for="district-allowlist-toggle" class="district-toggle-label">Strict district allowlist mode</label>
-                  <input id="district-allowlist-toggle" type="checkbox" class="district-toggle-input">
-                </div>
-                <p class="form-help">When enabled, only approved links + core Google services are allowed. Google search remains allowed, and AI Overview will be blocked.</p>
+                  <div class="district-toggle-row">
+                    <label for="district-allowlist-toggle" class="district-toggle-label">Strict district allowlist mode</label>
+                    <input id="district-allowlist-toggle" type="checkbox" class="district-toggle-input">
+                  </div>
+                  <p class="form-help">When enabled, only approved links + core Google services are allowed. Google search remains allowed, and AI Overview will be blocked.</p>
 
-                <div class="district-toggle-row">
-                  <label for="district-block-google-login-toggle" class="district-toggle-label">Block Google login methods</label>
-                  <input id="district-block-google-login-toggle" type="checkbox" class="district-toggle-input">
-                </div>
-                <p class="form-help">Blocks common “Sign in with Google” login flows for students.</p>
+                  <div class="district-toggle-row">
+                    <label for="district-block-google-login-toggle" class="district-toggle-label">Block Google login methods</label>
+                    <input id="district-block-google-login-toggle" type="checkbox" class="district-toggle-input">
+                  </div>
+                  <p class="form-help">Blocks common “Sign in with Google” login flows for students.</p>
 
-                <div class="district-toggle-row">
-                  <label for="district-block-microsoft-login-toggle" class="district-toggle-label">Block Microsoft login methods</label>
-                  <input id="district-block-microsoft-login-toggle" type="checkbox" class="district-toggle-input">
-                </div>
-                <p class="form-help">Microsoft school/student sign-in stays allowed.</p>
+                  <div class="district-toggle-row">
+                    <label for="district-block-microsoft-login-toggle" class="district-toggle-label">Block Microsoft login methods</label>
+                    <input id="district-block-microsoft-login-toggle" type="checkbox" class="district-toggle-input">
+                  </div>
+                  <p class="form-help">Microsoft school/student sign-in stays allowed.</p>
 
-                <div id="district-allowlist-links-wrap">
-                  <label>Always unblocked links (one per line or comma-separated)</label>
-                  <textarea id="district-allowed-links" rows="5" placeholder="khanacademy.org&#10;schoology.com&#10;docs.google.com"></textarea>
-                </div>
+                  <div id="district-allowlist-links-wrap">
+                    <label>Always unblocked links (one per line or comma-separated)</label>
+                    <textarea id="district-allowed-links" rows="5" placeholder="khanacademy.org&#10;schoology.com&#10;docs.google.com"></textarea>
+                  </div>
 
-                <button id="save-district-settings-btn" class="btn primary">Save district settings</button>
+                  <button id="save-district-settings-btn" class="btn primary">Save district settings</button>
+                </section>
               </div>
             </div>
           </div>
@@ -427,6 +553,7 @@
       <div class="screen-modal-body">
         <div class="screen-modal-left">
           <img id="screen-modal-image" alt="Student screen">
+          <div id="screen-modal-offline-placeholder" class="screen-modal-offline-placeholder hidden">Student Offline</div>
         </div>
         <div class="screen-modal-right">
           <div class="tabs-browser">
