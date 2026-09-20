@@ -240,9 +240,22 @@
           <div class="district-admin-shell">
             <div class="district-admin-main">
               <div class="district-admin-page-header">
-                <h2>District Administrator Panel</h2>
-                <p>Manage users, approvals, and district-wide access policies across your AntiBlocked organization.</p>
+                <p id="super-admin-kicker" class="super-admin-kicker hidden">AntiBlocked Owner Console</p>
+                <h2 id="admin-panel-title">District Administrator Panel</h2>
+                <p id="admin-panel-description">Manage users, approvals, and district-wide access policies across your AntiBlocked organization.</p>
               </div>
+
+              <section id="super-admin-console" class="super-admin-console hidden">
+                <div class="super-admin-profile">
+                  <img src="../extension/antiblocked.png" alt="AntiBlocked logo">
+                  <div>
+                    <span>Signed in as</span>
+                    <strong>antonkrupinski0@gmail.com</strong>
+                  </div>
+                  <span class="super-admin-owner-badge">Owner</span>
+                </div>
+                <div id="super-admin-console-stats" class="super-admin-console-stats"></div>
+              </section>
 
               <div class="district-admin-toolbar">
                 <div class="district-admin-toolbar-left">
@@ -344,6 +357,14 @@
               </div>
 
               <div class="district-admin-content-grid">
+                <section id="district-requests-panel" class="card district-admin-table-card district-admin-table-wide hidden">
+                  <div class="admin-panel-head">
+                    <h3>District Requests</h3>
+                    <p class="form-help">Review districts created through subscriptions before enabling them.</p>
+                  </div>
+                  <div id="district-requests-list" class="admin-list district-admin-table-list"></div>
+                </section>
+
                 <section class="card district-admin-table-card">
                   <div class="admin-panel-head">
                     <h3>Districts</h3>

@@ -2854,6 +2854,120 @@ select:focus {
   color: #50627a;
 }
 
+.super-admin-kicker {
+  color: #4d9cff !important;
+  font-size: 11px !important;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 5px !important;
+}
+
+.super-admin-console {
+  margin-top: 16px;
+  border: 1px solid #2f557b;
+  border-radius: 8px;
+  padding: 14px;
+  color: #e7f1ff;
+  background:
+    radial-gradient(circle at 92% 5%, rgba(68, 156, 255, 0.24), transparent 26%),
+    linear-gradient(135deg, #0c2742, #123d67);
+  box-shadow: 0 12px 22px rgba(16, 45, 78, 0.15);
+}
+
+.super-admin-profile {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.super-admin-profile img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 5px;
+  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+}
+
+.super-admin-profile div {
+  display: grid;
+  gap: 1px;
+}
+
+.super-admin-profile span {
+  color: #b9cde3;
+  font-size: 10px;
+}
+
+.super-admin-profile strong {
+  color: #fff;
+  font-size: 13px;
+}
+
+.super-admin-owner-badge {
+  margin-left: auto;
+  padding: 4px 7px;
+  border: 1px solid #7baff0;
+  border-radius: 4px;
+  color: #ddecff !important;
+  background: rgba(51, 134, 223, 0.2);
+  font-size: 10px !important;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.super-admin-console-stats {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.super-admin-console-stat {
+  border: 1px solid rgba(151, 194, 240, 0.24);
+  border-radius: 5px;
+  padding: 8px;
+  background: rgba(4, 20, 39, 0.28);
+  display: grid;
+  gap: 3px;
+}
+
+.super-admin-console-stat span {
+  font-size: 10px;
+  color: #b8cbe1;
+}
+
+.super-admin-console-stat strong {
+  color: #fff;
+  font-size: 19px;
+}
+
+.district-request-row {
+  background: linear-gradient(90deg, #fff, #f7fbff);
+  border-left: 3px solid #3a91ec;
+}
+
+.district-request-state {
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.district-request-state.accepted {
+  background: #e8f8ef;
+  color: #187c45;
+}
+
+.district-request-state.declined {
+  background: #fff0f0;
+  color: #b42318;
+}
+
 .district-admin-state-tab {
   font-size: 17px;
 }
@@ -3020,6 +3134,10 @@ select:focus {
 
   .auth-device-stack {
     height: 280px;
+  }
+
+  .super-admin-console-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

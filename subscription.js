@@ -60,6 +60,15 @@ async function createDistrictPlan() {
   setStatus("Processing Stripe payment and creating district...");
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   const districtId = push(ref(db, "districts")).key;
+  const requestId = push(ref(db, "districtRequests")).key;
+  const subscription = {
+    plan: "district",
+    pricePerStudent: 12.5,
+    students,
+    amount: Number((students * 12.5).toFixed(2)),
+    provider: "stripe",
+    status: "pending_review"
+  };
 
   await set(ref(db, `districts/${districtId}`), {
     districtId,
@@ -67,27 +76,32 @@ async function createDistrictPlan() {
     joinCode: generateJoinCode(),
     createdBy: credential.user.uid,
     createdAt: Date.now(),
-    subscription: {
-      plan: "district",
-      pricePerStudent: 12.5,
-      students,
-      amount: Number((students * 12.5).toFixed(2)),
-      provider: "stripe",
-      status: "active"
-    }
+    status: "pending",
+    subscription
   });
 
   await set(ref(db, `users/${credential.user.uid}`), {
     email,
     displayName: "District Administrator",
     role: "admin",
-    approved: true,
+    approved: false,
     districtId,
     districtName: name,
     updatedAt: Date.now()
   });
 
-  setStatus("District created. You can now sign in.");
+  await set(ref(db, `districtRequests/${requestId}`), {
+    requestId,
+    districtId,
+    districtName: name,
+    adminUid: credential.user.uid,
+    adminEmail: email,
+    subscription,
+    status: "pending",
+    createdAt: Date.now()
+  });
+
+  setStatus("District request submitted for Super Admin review.");
   setTimeout(() => {
     window.location.href = "./index.html";
   }, 1200);

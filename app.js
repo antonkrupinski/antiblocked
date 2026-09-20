@@ -73,6 +73,13 @@ const adminTabBtn = document.getElementById("admin-tab-btn");
 const logsTabBtn = document.getElementById("logs-tab-btn");
 const adminSidebarLinks = document.getElementById("admin-sidebar-links");
 const adminSidebarButtons = document.querySelectorAll(".admin-nav-btn");
+const superAdminKicker = document.getElementById("super-admin-kicker");
+const adminPanelTitle = document.getElementById("admin-panel-title");
+const adminPanelDescription = document.getElementById("admin-panel-description");
+const superAdminConsole = document.getElementById("super-admin-console");
+const superAdminConsoleStats = document.getElementById("super-admin-console-stats");
+const districtRequestsPanel = document.getElementById("district-requests-panel");
+const districtRequestsList = document.getElementById("district-requests-list");
 const districtLogsList = document.getElementById("district-logs-list");
 const districtScopeText = document.getElementById("district-scope");
 const districtDashboardTabBtn = document.getElementById("district-dashboard-tab-btn");
@@ -189,6 +196,7 @@ let stopTeacherDistrictWatcher = null;
 let stopUsersWatcher = null;
 let stopDistrictLogsWatcher = null;
 let stopDistrictInvitesWatcher = null;
+let stopDistrictRequestsWatcher = null;
 let lastApprovedState = false;
 let teacherHeartbeatTimer = null;
 let activeTeacherClassId = null;
@@ -198,6 +206,7 @@ let lastWelcomeEmail = "";
 let showingStudentHistory = false;
 let districtLogsCache = {};
 let districtInvitesCache = {};
+let districtRequestsCache = {};
 let adminInsightsTab = "dashboard";
 let districtScreenTimeCache = [];
 let selectedDistrictStudentKey = null;
@@ -663,8 +672,8 @@ function activateTab(tabName) {
 
 async function showSuperAdminPanel() {
   resetMainPanels();
-  topbarRole.textContent = "Role: Super Admin";
-  statusBanner.textContent = "Super admin access enabled.";
+  topbarRole.textContent = "AntiBlocked Owner";
+  statusBanner.textContent = "Owner console enabled.";
   forceSectionVisibility("admin");
   setupModal.classList.add("hidden");
   hideClassPickerPage();
@@ -685,6 +694,18 @@ async function mountAdminPanel(profile) {
   };
 
   openCreateDistrictBtn.classList.toggle("hidden", adminContext.role !== "super_admin");
+  const isSuperAdmin = adminContext.role === "super_admin";
+  superAdminKicker?.classList.toggle("hidden", !isSuperAdmin);
+  superAdminConsole?.classList.toggle("hidden", !isSuperAdmin);
+  districtRequestsPanel?.classList.toggle("hidden", !isSuperAdmin);
+  if (adminPanelTitle) {
+    adminPanelTitle.textContent = isSuperAdmin ? "Anton’s District Console" : "District Administrator Panel";
+  }
+  if (adminPanelDescription) {
+    adminPanelDescription.textContent = isSuperAdmin
+      ? "Review incoming district subscriptions, accept districts, and manage every AntiBlocked organization."
+      : "Manage users, approvals, and district-wide access policies across your AntiBlocked organization.";
+  }
   managedClassroomBar.classList.toggle("hidden", !managedClassroomId);
   districtCodeBar.classList.add("hidden");
 
@@ -704,7 +725,9 @@ async function mountAdminPanel(profile) {
     renderDistrictSettingsPanel();
     watchDistrictLogs();
     watchDistrictInvites();
+    watchDistrictRequests();
     renderDistrictInsights();
+    renderSuperAdminConsole();
   });
 
   stopPendingWatcher = onValue(ref(db, "pendingTeachers"), (snapshot) => {
@@ -712,6 +735,7 @@ async function mountAdminPanel(profile) {
     renderPendingApprovals();
     renderAdminStats();
     renderDistrictInsights();
+    renderSuperAdminConsole();
   });
 
   stopAdminClassroomsWatcher = onValue(ref(db, "classrooms"), (snapshot) => {
@@ -719,12 +743,14 @@ async function mountAdminPanel(profile) {
     renderDistrictClassrooms();
     renderAdminStats();
     renderDistrictInsights();
+    renderSuperAdminConsole();
   });
 
   stopUsersWatcher = onValue(ref(db, "users"), (snapshot) => {
     usersCache = snapshot.val() || {};
     renderAdminStats();
     renderDistrictInsights();
+    renderSuperAdminConsole();
   });
 
   setAdminInsightsTab("dashboard");
@@ -764,6 +790,160 @@ function renderAdminStats() {
   adminPendingCount.textContent = String(pendingCount);
   adminTeacherCount.textContent = String(teacherCount);
   adminClassroomCount.textContent = String(classroomCount);
+}
+
+function watchDistrictRequests() {
+  if (stopDistrictRequestsWatcher) {
+    stopDistrictRequestsWatcher();
+    stopDistrictRequestsWatcher = null;
+  }
+
+  if (adminContext?.role !== "super_admin") {
+    districtRequestsCache = {};
+    renderDistrictRequests();
+    return;
+  }
+
+  stopDistrictRequestsWatcher = onValue(ref(db, "districtRequests"), (snapshot) => {
+    districtRequestsCache = snapshot.val() || {};
+    renderDistrictRequests();
+    renderSuperAdminConsole();
+  });
+}
+
+function renderSuperAdminConsole() {
+  if (adminContext?.role !== "super_admin" || !superAdminConsoleStats) return;
+
+  const districts = Object.values(districtsCache || {});
+  const pendingRequests = Object.values(districtRequestsCache || {})
+    .filter((request) => request?.status === "pending").length;
+  const activeDistricts = districts.filter((district) => district?.status !== "pending" && district?.status !== "declined").length;
+  const totalStudents = Object.values(classroomsCache || {})
+    .reduce((count, classroom) => count + Object.values(classroom?.students || {}).filter((student) => student?.active).length, 0);
+
+  superAdminConsoleStats.innerHTML = "";
+  [
+    ["Active districts", activeDistricts],
+    ["Awaiting review", pendingRequests],
+    ["Classrooms", Object.keys(classroomsCache || {}).length],
+    ["Students monitored", totalStudents]
+  ].forEach(([label, value]) => {
+    const stat = document.createElement("div");
+    stat.className = "super-admin-console-stat";
+    stat.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
+    superAdminConsoleStats.appendChild(stat);
+  });
+}
+
+function renderDistrictRequests() {
+  if (!districtRequestsList) return;
+  districtRequestsList.innerHTML = "";
+
+  if (adminContext?.role !== "super_admin") return;
+  const requests = Object.entries(districtRequestsCache || {})
+    .map(([requestId, request]) => ({ requestId, ...request }))
+    .sort((a, b) => (b?.createdAt || 0) - (a?.createdAt || 0));
+
+  if (!requests.length) {
+    districtRequestsList.innerHTML = '<p class="admin-empty">No district requests yet.</p>';
+    return;
+  }
+
+  requests.forEach((request) => {
+    const row = document.createElement("div");
+    row.className = "admin-row district-request-row";
+    const status = request?.status || "pending";
+    const studentCount = Number(request?.subscription?.students || 0);
+    const amount = Number(request?.subscription?.amount || 0).toLocaleString(undefined, {
+      style: "currency",
+      currency: "USD"
+    });
+
+    const left = document.createElement("div");
+    left.className = "admin-row-main";
+    left.innerHTML = `
+      <div class="admin-row-title">${sanitizeText(request?.districtName || "Unnamed District")}</div>
+      <div class="admin-row-subtitle">${sanitizeText(request?.adminEmail || "No admin email")} · ${studentCount} students · ${amount}</div>
+      <div class="admin-row-subtitle">Status: ${status} · ${request?.createdAt ? new Date(request.createdAt).toLocaleString() : "Unknown time"}</div>
+    `;
+
+    const controls = document.createElement("div");
+    controls.className = "approval-controls admin-row-actions";
+
+    if (status === "pending") {
+      const acceptBtn = document.createElement("button");
+      acceptBtn.className = "btn primary";
+      acceptBtn.textContent = "Accept district";
+      acceptBtn.addEventListener("click", () => acceptDistrictRequest(request));
+
+      const declineBtn = document.createElement("button");
+      declineBtn.className = "btn danger";
+      declineBtn.textContent = "Decline";
+      declineBtn.addEventListener("click", () => declineDistrictRequest(request));
+
+      controls.appendChild(acceptBtn);
+      controls.appendChild(declineBtn);
+    } else {
+      const state = document.createElement("span");
+      state.className = `district-request-state ${status}`;
+      state.textContent = status;
+      controls.appendChild(state);
+    }
+
+    row.appendChild(left);
+    row.appendChild(controls);
+    districtRequestsList.appendChild(row);
+  });
+}
+
+async function acceptDistrictRequest(request) {
+  if (!request?.districtId || !request?.requestId) return;
+  const district = districtsCache?.[request.districtId] || {};
+
+  await update(ref(db, `districts/${request.districtId}`), {
+    status: "active",
+    acceptedAt: Date.now(),
+    acceptedBy: currentUser?.uid || "",
+    updatedAt: Date.now()
+  });
+  await update(ref(db, `districtRequests/${request.requestId}`), {
+    status: "accepted",
+    acceptedAt: Date.now(),
+    acceptedBy: currentUser?.uid || ""
+  });
+  if (request.adminUid) {
+    await update(ref(db, `users/${request.adminUid}`), {
+      approved: true,
+      role: "admin",
+      districtId: request.districtId,
+      districtName: district.name || request.districtName || "District",
+      updatedAt: Date.now()
+    });
+  }
+
+  statusBanner.textContent = `Accepted district: ${district.name || request.districtName || "District"}.`;
+}
+
+async function declineDistrictRequest(request) {
+  if (!request?.districtId || !request?.requestId) return;
+  await update(ref(db, `districts/${request.districtId}`), {
+    status: "declined",
+    declinedAt: Date.now(),
+    declinedBy: currentUser?.uid || "",
+    updatedAt: Date.now()
+  });
+  await update(ref(db, `districtRequests/${request.requestId}`), {
+    status: "declined",
+    declinedAt: Date.now(),
+    declinedBy: currentUser?.uid || ""
+  });
+  if (request.adminUid) {
+    await update(ref(db, `users/${request.adminUid}`), {
+      approved: false,
+      updatedAt: Date.now()
+    });
+  }
+  statusBanner.textContent = `Declined district: ${request.districtName || "District"}.`;
 }
 
 function watchDistrictLogs() {
@@ -1090,6 +1270,16 @@ function renderBarsList(container, items, formatter) {
 
 function renderDistrictInsights() {
   if (!adminContext) return;
+  if (adminContext.role === "super_admin" && !adminContext.activeDistrictId) {
+    districtActivitySummary.innerHTML = '<p class="admin-empty">Select an active district to view activity.</p>';
+    districtTopSitesList.innerHTML = "";
+    districtTopStudentsList.innerHTML = "";
+    districtScreentimeSummary.innerHTML = "";
+    districtScreentimeChart.innerHTML = "";
+    districtStudentsList.innerHTML = "";
+    districtStudentDetail?.classList.add("hidden");
+    return;
+  }
   const students = getScopedDistrictStudents();
 
   const siteCounts = {};
@@ -1311,6 +1501,13 @@ function extractDomainFromEntry(value) {
   return normalizeDomainEntry(value);
 }
 
+function splitSettingsEntries(value) {
+  return String(value || "")
+    .split(/[\n,;]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function setDistrictSettingsControlsDisabled(disabled) {
   districtBlockedDomainsInput.disabled = disabled;
   districtBlockedCategoriesSelect.disabled = disabled;
@@ -1360,7 +1557,7 @@ async function saveDistrictGlobalSettings() {
   }
 
   const blockedDomains = districtBlockedDomainsInput.value
-    .split(",")
+    .split(/[\n,;]+/)
     .map((d) => normalizeDomainEntry(d))
     .filter(Boolean);
   if (blockedDomains.some((domain) => isRestrictedDistrictDomain(domain))) {
@@ -1372,7 +1569,7 @@ async function saveDistrictGlobalSettings() {
   const blockGoogleLoginMethods = Boolean(districtBlockGoogleLoginToggle.checked);
   const blockMicrosoftLoginMethods = Boolean(districtBlockMicrosoftLoginToggle.checked);
   const allowedLinks = Array.from(new Set(districtAllowedLinksInput.value
-    .split(/[,\n]/)
+    .split(/[\n,;]+/)
     .map((link) => normalizeAllowedLinkEntry(link))
     .filter(Boolean)
     .concat(RESTRICTED_DISTRICT_DOMAIN)));
@@ -1390,7 +1587,8 @@ async function saveDistrictGlobalSettings() {
 
   await propagateDistrictSettingsToClassrooms(scopeDistrictId, {
     blockedDomains,
-    blockedCategories
+    blockedCategories,
+    allowedLinks
   });
 
   statusBanner.textContent = "District global settings saved.";
@@ -1405,6 +1603,9 @@ async function propagateDistrictSettingsToClassrooms(districtId, settings) {
   const districtBlockedCategories = Array.isArray(settings?.blockedCategories)
     ? settings.blockedCategories.map((c) => String(c || "").trim()).filter(Boolean)
     : [];
+  const districtAllowedLinks = Array.isArray(settings?.allowedLinks)
+    ? settings.allowedLinks.map((link) => normalizeAllowedLinkEntry(link)).filter(Boolean)
+    : [];
 
   const snapshot = await get(ref(db, "classrooms"));
   const allClassrooms = snapshot.val() || {};
@@ -1413,6 +1614,8 @@ async function propagateDistrictSettingsToClassrooms(districtId, settings) {
     .map(([classId]) => update(ref(db, `classrooms/${classId}/settings`), {
       blockedDomains: districtBlockedDomains,
       blockedCategories: districtBlockedCategories,
+      allowedLinks: Array.from(new Set([...districtAllowedLinks, RESTRICTED_DISTRICT_DOMAIN])),
+      policyUpdatedAt: Date.now(),
       updatedAt: Date.now(),
       updatedBy: currentUser?.uid || null
     }));
@@ -1535,7 +1738,8 @@ function renderDistrictList() {
   districtList.innerHTML = "";
   if (!adminContext) return;
 
-  const entries = Object.entries(districtsCache || {});
+  const entries = Object.entries(districtsCache || {})
+    .filter(([, district]) => adminContext.role !== "super_admin" || district?.status !== "pending");
   if (adminContext.role !== "super_admin" && adminContext.districtId && !districtsCache[adminContext.districtId]) {
     entries.push([adminContext.districtId, { name: adminContext.districtName }]);
   }
@@ -1558,7 +1762,7 @@ function renderDistrictList() {
       left.className = "admin-row-main";
       left.innerHTML = `
         <div class="admin-row-title">${district.name}</div>
-        <div class="admin-row-subtitle">ID: ${districtId}</div>
+        <div class="admin-row-subtitle">ID: ${districtId} · ${district?.status === "declined" ? "Declined" : "Active"}</div>
       `;
 
       const controls = document.createElement("div");
@@ -2617,12 +2821,17 @@ async function toggleDomainBlock(domain, classId, options = {}) {
     const districtDomains = Array.isArray(districtSettings.blockedDomains)
       ? districtSettings.blockedDomains.map((d) => String(d || "").trim().toLowerCase()).filter(Boolean)
       : [];
+    const districtAllowedLinks = Array.isArray(districtSettings.allowedLinks)
+      ? districtSettings.allowedLinks.map((link) => normalizeAllowedLinkEntry(link)).filter(Boolean)
+      : [];
     const mergedDomains = currentlyBlocked
       ? districtDomains.filter((d) => d !== normalizedDomain)
       : Array.from(new Set([...districtDomains, normalizedDomain])).filter((d) => !isRestrictedDistrictDomain(d));
+    const mergedAllowedLinks = Array.from(new Set([...districtAllowedLinks, RESTRICTED_DISTRICT_DOMAIN]));
 
     await update(ref(db, `districts/${districtId}/settings`), {
       blockedDomains: mergedDomains,
+      policyUpdatedAt: Date.now(),
       updatedAt: Date.now(),
       updatedBy: currentUser?.uid || null
     });
@@ -2631,7 +2840,8 @@ async function toggleDomainBlock(domain, classId, options = {}) {
       blockedDomains: mergedDomains,
       blockedCategories: Array.isArray(districtSettings.blockedCategories)
         ? districtSettings.blockedCategories
-        : []
+        : [],
+      allowedLinks: mergedAllowedLinks
     });
 
     if (currentlyBlocked) {
@@ -2687,7 +2897,7 @@ async function saveClassroomSettings() {
   const className = settingsClassNameInput.value.trim();
   const classType = settingsClassTypeInput.value || "Other";
   const domains = blockedDomainsInput.value
-    .split(",")
+    .split(/[\n,;]+/)
     .map((d) => normalizeDomainEntry(d))
     .filter(Boolean);
   if (domains.some((domain) => isRestrictedDistrictDomain(domain))) {
@@ -2695,7 +2905,7 @@ async function saveClassroomSettings() {
     return;
   }
   const allowedLinks = Array.from(new Set(alwaysAllowedLinksInput.value
-    .split(/[,\n]/)
+    .split(/[\n,;]+/)
     .map((link) => normalizeAllowedLinkEntry(link))
     .filter(Boolean)
     .concat(RESTRICTED_DISTRICT_DOMAIN)));
@@ -2718,6 +2928,7 @@ async function saveClassroomSettings() {
 
     await update(ref(db, `${classRefPath}/settings`), {
       showScreenWatchStatus,
+      policyUpdatedAt: Date.now(),
       updatedAt: Date.now(),
       updatedBy: currentUser?.uid || null
     });
@@ -2737,6 +2948,7 @@ async function saveClassroomSettings() {
     await update(ref(db, `districts/${districtId}/settings`), {
       blockedDomains: mergedDomains,
       allowedLinks: mergedAllowedLinks,
+      policyUpdatedAt: Date.now(),
       updatedAt: Date.now(),
       updatedBy: currentUser?.uid || null
     });
@@ -2761,6 +2973,7 @@ async function saveClassroomSettings() {
     allowedLinks,
     showScreenWatchStatus,
     blockedCategories: categories,
+    policyUpdatedAt: Date.now(),
     updatedAt: Date.now()
   });
 
@@ -2830,6 +3043,10 @@ function cleanupAdminWatchers() {
   if (stopDistrictInvitesWatcher) {
     stopDistrictInvitesWatcher();
     stopDistrictInvitesWatcher = null;
+  }
+  if (stopDistrictRequestsWatcher) {
+    stopDistrictRequestsWatcher();
+    stopDistrictRequestsWatcher = null;
   }
 }
 
