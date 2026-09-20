@@ -98,6 +98,8 @@ const districtStudentDetailTitle = document.getElementById("district-student-det
 const districtStudentDetailSummary = document.getElementById("district-student-detail-summary");
 const districtStudentScreentimeChart = document.getElementById("district-student-screentime-chart");
 const districtStudentWebsiteTimes = document.getElementById("district-student-website-times");
+const districtRosterSearch = document.getElementById("district-roster-search");
+const districtRosterList = document.getElementById("district-roster-list");
 const districtInviteRole = document.getElementById("district-invite-role");
 const districtInviteEmail = document.getElementById("district-invite-email");
 const createDistrictInviteBtn = document.getElementById("create-district-invite-btn");
@@ -210,6 +212,8 @@ let districtRequestsCache = {};
 let adminInsightsTab = "dashboard";
 let districtScreenTimeCache = [];
 let selectedDistrictStudentKey = null;
+let districtStudentsCache = {};
+let stopDistrictStudentsWatcher = null;
 const STUDENT_OFFLINE_TIMEOUT_MS = 20000;
 
 const tabs = document.querySelectorAll(".tab-btn");
@@ -317,6 +321,10 @@ districtScreentimeTabBtn?.addEventListener("click", () => {
 
 districtScreentimeSearch?.addEventListener("input", () => {
   renderDistrictStudentScreenTimeList();
+});
+
+districtRosterSearch?.addEventListener("input", () => {
+  renderDistrictStudentRoster();
 });
 
 adminSidebarButtons.forEach((btn) => {
@@ -726,6 +734,7 @@ async function mountAdminPanel(profile) {
     watchDistrictLogs();
     watchDistrictInvites();
     watchDistrictRequests();
+    watchDistrictStudents();
     renderDistrictInsights();
     renderSuperAdminConsole();
   });
@@ -741,10 +750,13 @@ async function mountAdminPanel(profile) {
   stopAdminClassroomsWatcher = onValue(ref(db, "classrooms"), (snapshot) => {
     classroomsCache = snapshot.val() || {};
     renderDistrictClassrooms();
+    renderDistrictStudentRoster();
     renderAdminStats();
     renderDistrictInsights();
     renderSuperAdminConsole();
   });
+
+  watchDistrictStudents();
 
   stopUsersWatcher = onValue(ref(db, "users"), (snapshot) => {
     usersCache = snapshot.val() || {};
@@ -1926,6 +1938,136 @@ function renderDistrictClassrooms() {
   renderAdminStats();
 }
 
+function watchDistrictStudents() {
+  const districtId = getAdminScopeDistrictId();
+  if (stopDistrictStudentsWatcher) {
+    stopDistrictStudentsWatcher();
+    stopDistrictStudentsWatcher = null;
+  }
+  districtStudentsCache = {};
+  if (!districtId) {
+    renderDistrictStudentRoster();
+    return;
+  }
+
+  stopDistrictStudentsWatcher = onValue(ref(db, `districtPending/${districtId}`), (snapshot) => {
+    districtStudentsCache = snapshot.val() || {};
+    renderDistrictStudentRoster();
+  });
+}
+
+function getDistrictClassroomById(classId) {
+  return Object.values(classroomsCache || {}).find((room) => room?.classId === classId) || null;
+}
+
+function renderDistrictStudentRoster() {
+  if (!districtRosterList) return;
+  const districtId = getAdminScopeDistrictId();
+  districtRosterList.innerHTML = "";
+  if (!districtId) {
+    districtRosterList.innerHTML = '<p class="admin-empty">Select a district to manage students.</p>';
+    return;
+  }
+
+  const query = String(districtRosterSearch?.value || "").trim().toLowerCase();
+  const students = Object.entries(districtStudentsCache || {})
+    .map(([studentId, student]) => ({ studentId, ...student }))
+    .filter((student) => {
+      const text = `${student.displayName || ""} ${student.email || ""}`.toLowerCase();
+      return !query || text.includes(query);
+    })
+    .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""));
+
+  if (!students.length) {
+    districtRosterList.innerHTML = '<p class="admin-empty">No students have joined this district yet.</p>';
+    return;
+  }
+
+  students.forEach((student) => {
+    const classroom = getDistrictClassroomById(student.assignedClassId);
+    const row = document.createElement("div");
+    row.className = "admin-row";
+    const status = classroom
+      ? `Enrolled · ${classroom.className || classroom.classType || "Class"}`
+      : "Waiting for classroom assignment";
+    row.innerHTML = `
+      <div class="admin-row-main">
+        <div class="admin-row-title">${sanitizeText(student.displayName || "Student")}</div>
+        <div class="admin-row-subtitle">${sanitizeText(student.email || "No email")}</div>
+        <div class="admin-row-subtitle">${sanitizeText(status)}</div>
+      </div>
+    `;
+    const controls = document.createElement("div");
+    controls.className = "approval-controls";
+    if (classroom) {
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "btn danger";
+      removeBtn.textContent = "Remove from classroom";
+      removeBtn.addEventListener("click", () => removeStudentFromClassroom(student.studentId, classroom.classId));
+      controls.appendChild(removeBtn);
+    }
+    const removeDistrictBtn = document.createElement("button");
+    removeDistrictBtn.className = "btn danger";
+    removeDistrictBtn.textContent = "Remove from district";
+    removeDistrictBtn.addEventListener("click", () => removeStudentFromDistrict(student.studentId));
+    controls.appendChild(removeDistrictBtn);
+    row.appendChild(controls);
+    districtRosterList.appendChild(row);
+  });
+}
+
+async function removeStudentFromClassroom(studentId, classId) {
+  const districtId = userProfile?.districtId || getAdminScopeDistrictId();
+  if (!studentId || !classId || !districtId) return;
+  await update(ref(db, `classrooms/${classId}/students/${studentId}`), {
+    active: false,
+    removedAt: Date.now(),
+    removedBy: currentUser?.uid || null
+  });
+  await update(ref(db, `districtPending/${districtId}/${studentId}`), {
+    assignedClassId: null,
+    status: "pending",
+    unassignedAt: Date.now(),
+    updatedAt: Date.now()
+  });
+  await update(ref(db, `studentAccounts/${studentId}`), {
+    classId: null,
+    studentId: null,
+    classCode: null,
+    classType: "",
+    teacherName: "",
+    updatedAt: Date.now()
+  });
+  statusBanner.textContent = "Student removed from the classroom.";
+}
+
+async function removeStudentFromDistrict(studentId) {
+  const districtId = getAdminScopeDistrictId();
+  if (!studentId || !districtId) return;
+  const student = districtStudentsCache?.[studentId] || {};
+  if (student.assignedClassId) {
+    await update(ref(db, `classrooms/${student.assignedClassId}/students/${studentId}`), {
+      active: false,
+      removedAt: Date.now(),
+      removedBy: currentUser?.uid || null
+    });
+  }
+  await remove(ref(db, `districtPending/${districtId}/${studentId}`));
+  await update(ref(db, `studentAccounts/${studentId}`), {
+    districtId: null,
+    districtName: "",
+    districtCode: "",
+    pendingId: studentId,
+    classId: null,
+    studentId: null,
+    classCode: null,
+    classType: "",
+    teacherName: "",
+    updatedAt: Date.now()
+  });
+  statusBanner.textContent = "Student removed from the district.";
+}
+
 async function createDistrict() {
   if (!adminContext || adminContext.role !== "super_admin") return;
 
@@ -2109,12 +2251,13 @@ function renderClassroomViews() {
   } else {
     if (!classroomData) return;
     settings = classroomData.settings || settings;
+    const currentClassId = classRefPath.split("/").pop();
     Object.entries(classroomData.students || {})
       .filter(([, student]) => student?.active)
       .forEach(([studentId, student]) => {
         entries.push({
           renderId: studentId,
-          classId: activeTeacherClassId,
+          classId: currentClassId,
           className: classroomData.className || classroomData.classType || "Class",
           studentId,
           student
@@ -2184,11 +2327,9 @@ function renderClassroomViews() {
     const removeBtn = document.createElement("button");
     removeBtn.className = "btn danger";
     removeBtn.textContent = "Remove";
-    removeBtn.addEventListener("click", async () => {
-      await update(ref(db, `classrooms/${classId}/students/${studentId}`), {
-        active: false,
-        removedAt: Date.now()
-      });
+    removeBtn.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      await removeStudentFromClassroom(studentId, classId);
     });
 
     row.appendChild(removeBtn);
@@ -2480,7 +2621,10 @@ function openAllClassroomsView() {
 
 function renderClassStudentsPicker() {
   classStudentsList.innerHTML = "";
-  const entries = Object.entries(pendingStudentsCache || {}).filter(([, data]) => !data?.assignedClassId);
+  const studentPool = { ...(districtStudentsCache || {}), ...(pendingStudentsCache || {}) };
+  const entries = Object.entries(studentPool).filter(([, data]) => {
+    return !data?.assignedClassId || data?.status === "pending" || data?.status === "removed";
+  });
   if (!entries.length) {
     classStudentsList.innerHTML = "<div class=\"class-student-row\">No pending students.</div>";
     return;
@@ -2532,23 +2676,7 @@ async function createClassFromPicker() {
     commands: {}
   });
 
-  for (const pendingId of selectedIds) {
-    const pending = pendingStudentsCache[pendingId] || {};
-    await update(ref(db, `classrooms/${classId}/students/${pendingId}`), {
-      active: true,
-      email: pending.email || "",
-      displayName: pending.displayName || "Student",
-      joinedAt: Date.now(),
-      lastSeen: Date.now(),
-      lockUrl: null
-    });
-    await update(ref(db, `districtPending/${userProfile.districtId}/${pendingId}`), {
-      assignedClassId: classId,
-      assignedAt: Date.now(),
-      assignedTeacherId: currentUser.uid,
-      assignedTeacherName: userProfile.displayName || ""
-    });
-  }
+  await Promise.all(selectedIds.map((studentId) => assignStudentToClassroom(studentId, classId)));
 
   await update(ref(db, `users/${currentUser.uid}`), {
     activeClassId: classId,
@@ -3069,6 +3197,11 @@ function cleanupAdminWatchers() {
     stopDistrictRequestsWatcher();
     stopDistrictRequestsWatcher = null;
   }
+  if (stopDistrictStudentsWatcher) {
+    stopDistrictStudentsWatcher();
+    stopDistrictStudentsWatcher = null;
+  }
+  districtStudentsCache = {};
 }
 
 function startTeacherHeartbeat(activeClassId) {
@@ -3158,7 +3291,10 @@ function sanitizeText(value) {
 
 function renderAddStudentsPicker() {
   addStudentsList.innerHTML = "";
-  const entries = Object.entries(pendingStudentsCache || {}).filter(([, data]) => !data?.assignedClassId);
+  const studentPool = { ...(districtStudentsCache || {}), ...(pendingStudentsCache || {}) };
+  const entries = Object.entries(studentPool).filter(([, data]) => {
+    return !data?.assignedClassId || data?.status === "pending" || data?.status === "removed";
+  });
   if (!entries.length) {
     addStudentsList.innerHTML = "<div class=\"class-student-row\">No district students waiting.</div>";
     return;
@@ -3180,31 +3316,50 @@ async function addSelectedStudentsToCurrentClass() {
     statusBanner.textContent = "Select a class first.";
     return;
   }
-  const activeClassId = userProfile.activeClassId || userProfile.classId;
+  const activeClassId = classRefPath.split("/").pop();
   const selectedIds = Array.from(addStudentsList.querySelectorAll("input[type=\"checkbox\"]:checked")).map((input) => input.value);
   if (!selectedIds.length) {
     statusBanner.textContent = "Select at least one student.";
     return;
   }
 
-  for (const pendingId of selectedIds) {
-    const pending = pendingStudentsCache[pendingId] || {};
-    await update(ref(db, `${classRefPath}/students/${pendingId}`), {
-      active: true,
-      email: pending.email || "",
-      displayName: pending.displayName || "Student",
-      joinedAt: Date.now(),
-      lastSeen: Date.now(),
-      lockUrl: null
-    });
-    await update(ref(db, `districtPending/${userProfile.districtId}/${pendingId}`), {
-      assignedClassId: activeClassId,
-      assignedAt: Date.now(),
-      assignedTeacherId: currentUser.uid,
-      assignedTeacherName: userProfile.displayName || ""
-    });
-  }
+  await Promise.all(selectedIds.map((studentId) => assignStudentToClassroom(studentId, activeClassId)));
 
   addStudentsModal.classList.add("hidden");
   statusBanner.textContent = `Added ${selectedIds.length} student${selectedIds.length === 1 ? "" : "s"} to this class.`;
+}
+
+async function assignStudentToClassroom(studentId, classId) {
+  const districtId = userProfile?.districtId || getAdminScopeDistrictId();
+  if (!studentId || !classId || !districtId) throw new Error("Student, classroom, or district is missing.");
+  const pending = pendingStudentsCache?.[studentId] || districtStudentsCache?.[studentId] || {};
+  const classroom = classroomsCache?.[classId] || classroomData || {};
+  await update(ref(db, `classrooms/${classId}/students/${studentId}`), {
+    active: true,
+    accountId: studentId,
+    email: pending.email || "",
+    displayName: pending.displayName || "Student",
+    joinedAt: Date.now(),
+    lastSeen: Date.now(),
+    lockUrl: null,
+    removedAt: null
+  });
+  await update(ref(db, `districtPending/${districtId}/${studentId}`), {
+    assignedClassId: classId,
+    assignedAt: Date.now(),
+    assignedTeacherId: classroom.teacherId || currentUser?.uid || "",
+    assignedTeacherName: classroom.teacherName || userProfile?.displayName || "",
+    status: "assigned",
+    updatedAt: Date.now()
+  });
+  await update(ref(db, `studentAccounts/${studentId}`), {
+    districtId,
+    pendingId: studentId,
+    classId,
+    studentId,
+    classCode: classroom.classCode || null,
+    classType: classroom.classType || "",
+    teacherName: classroom.teacherName || "",
+    updatedAt: Date.now()
+  });
 }

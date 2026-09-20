@@ -113,6 +113,7 @@
           <p class="sidebar-title">District Admin</p>
           <button class="admin-nav-btn" type="button" data-admin-section="district-dashboard-panel">Dashboard</button>
           <button class="admin-nav-btn" type="button" data-admin-section="district-people-panel">Users</button>
+          <button class="admin-nav-btn" type="button" data-admin-section="district-students-panel">Students</button>
           <button class="admin-nav-btn" type="button" data-admin-section="district-classrooms-panel">Classrooms</button>
           <button class="admin-nav-btn" type="button" data-admin-section="district-settings-panel">Product Settings</button>
           <button class="admin-nav-btn" type="button" data-tab="logs">Logs</button>
@@ -401,6 +402,15 @@
                   <div id="district-classrooms" class="admin-list district-admin-table-list"></div>
                 </section>
 
+                <section id="district-students-panel" class="card district-admin-table-card district-admin-table-wide">
+                  <div class="admin-panel-head">
+                    <h3>Students</h3>
+                    <p class="form-help">Manage students waiting for a classroom or currently enrolled in this district.</p>
+                  </div>
+                  <input id="district-roster-search" type="text" placeholder="Search student by name or email">
+                  <div id="district-roster-list" class="admin-list district-admin-table-list"></div>
+                </section>
+
                 <section id="district-settings-panel" class="card district-admin-settings-card district-admin-table-wide">
                   <div class="admin-panel-head">
                     <h3>District Settings · Global Blocking</h3>
@@ -595,6 +605,6 @@
     </div>
   </div>
 
-  <script type="module" src="./app.js?v=20260916b"></script>
+  <script type="module" src="./app.js?v=20260920a"></script>
 </body>
 </html>
