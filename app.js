@@ -1457,12 +1457,16 @@ function normalizeDistrictSettings(settings = {}) {
       .filter(Boolean)))
     : [];
 
+  const strictAllowlistEnabled = Boolean(settings.strictAllowlistEnabled);
+  const blockGoogleLoginMethods = Boolean(settings.blockGoogleLoginMethods);
+  const blockMicrosoftLoginMethods = Boolean(settings.blockMicrosoftLoginMethods);
+
   return {
     blockedDomains,
     blockedCategories,
-    strictAllowlistEnabled: Boolean(settings.strictAllowlistEnabled),
-    blockGoogleLoginMethods: Boolean(settings.blockGoogleLoginMethods),
-    blockMicrosoftLoginMethods: Boolean(settings.blockMicrosoftLoginMethods),
+    strictAllowlistEnabled,
+    blockGoogleLoginMethods,
+    blockMicrosoftLoginMethods,
     allowedLinks: Array.from(new Set([...allowedLinks, RESTRICTED_DISTRICT_DOMAIN]))
   };
 }
@@ -1581,6 +1585,7 @@ async function saveDistrictGlobalSettings() {
     blockGoogleLoginMethods,
     blockMicrosoftLoginMethods,
     allowedLinks,
+    policyUpdatedAt: Date.now(),
     updatedAt: Date.now(),
     updatedBy: currentUser?.uid || null
   });
@@ -1588,7 +1593,10 @@ async function saveDistrictGlobalSettings() {
   await propagateDistrictSettingsToClassrooms(scopeDistrictId, {
     blockedDomains,
     blockedCategories,
-    allowedLinks
+    allowedLinks,
+    strictAllowlistEnabled,
+    blockGoogleLoginMethods,
+    blockMicrosoftLoginMethods
   });
 
   statusBanner.textContent = "District global settings saved.";
@@ -1606,6 +1614,15 @@ async function propagateDistrictSettingsToClassrooms(districtId, settings) {
   const districtAllowedLinks = Array.isArray(settings?.allowedLinks)
     ? settings.allowedLinks.map((link) => normalizeAllowedLinkEntry(link)).filter(Boolean)
     : [];
+  const districtStrictAllowlistEnabled = settings?.strictAllowlistEnabled === undefined
+    ? Boolean(normalizeDistrictSettings(districtsCache?.[districtId]?.settings || {}).strictAllowlistEnabled)
+    : Boolean(settings.strictAllowlistEnabled);
+  const districtBlockGoogleLoginMethods = settings?.blockGoogleLoginMethods === undefined
+    ? Boolean(normalizeDistrictSettings(districtsCache?.[districtId]?.settings || {}).blockGoogleLoginMethods)
+    : Boolean(settings.blockGoogleLoginMethods);
+  const districtBlockMicrosoftLoginMethods = settings?.blockMicrosoftLoginMethods === undefined
+    ? Boolean(normalizeDistrictSettings(districtsCache?.[districtId]?.settings || {}).blockMicrosoftLoginMethods)
+    : Boolean(settings.blockMicrosoftLoginMethods);
 
   const snapshot = await get(ref(db, "classrooms"));
   const allClassrooms = snapshot.val() || {};
@@ -1615,6 +1632,9 @@ async function propagateDistrictSettingsToClassrooms(districtId, settings) {
       blockedDomains: districtBlockedDomains,
       blockedCategories: districtBlockedCategories,
       allowedLinks: Array.from(new Set([...districtAllowedLinks, RESTRICTED_DISTRICT_DOMAIN])),
+      strictAllowlistEnabled: districtStrictAllowlistEnabled,
+      blockGoogleLoginMethods: districtBlockGoogleLoginMethods,
+      blockMicrosoftLoginMethods: districtBlockMicrosoftLoginMethods,
       policyUpdatedAt: Date.now(),
       updatedAt: Date.now(),
       updatedBy: currentUser?.uid || null
@@ -2214,7 +2234,7 @@ function renderClassroomViews() {
   blockedDomainsInput.disabled = viewingAllClassrooms;
   teacherWatchVisibilityToggle.disabled = viewingAllClassrooms;
   alwaysAllowedLinksInput.disabled = viewingAllClassrooms;
-  blockedCategoriesSelect.disabled = viewingAllClassrooms || isTeacher;
+  blockedCategoriesSelect.disabled = viewingAllClassrooms;
   settingsClassNameInput.disabled = viewingAllClassrooms;
   settingsClassTypeInput.disabled = viewingAllClassrooms;
   saveSettingsBtn.disabled = viewingAllClassrooms;
@@ -2919,19 +2939,24 @@ async function saveClassroomSettings() {
     updatedAt: Date.now()
   });
 
+  const categories = Array.from(blockedCategoriesSelect.selectedOptions).map((option) => option.value);
+
+  await update(ref(db, `${classRefPath}/settings`), {
+    blockedDomains: domains,
+    blockedCategories: categories,
+    allowedLinks,
+    showScreenWatchStatus,
+    policyUpdatedAt: Date.now(),
+    updatedAt: Date.now(),
+    updatedBy: currentUser?.uid || null
+  });
+
   if (isTeacher) {
     const districtId = userProfile?.districtId;
     if (!districtId) {
-      statusBanner.textContent = "No district assigned for global blocked links.";
+      statusBanner.textContent = "Classroom settings saved.";
       return;
     }
-
-    await update(ref(db, `${classRefPath}/settings`), {
-      showScreenWatchStatus,
-      policyUpdatedAt: Date.now(),
-      updatedAt: Date.now(),
-      updatedBy: currentUser?.uid || null
-    });
 
     const districtSettingsSnap = await get(ref(db, `districts/${districtId}/settings`));
     const districtSettings = districtSettingsSnap.val() || {};
@@ -2941,12 +2966,17 @@ async function saveClassroomSettings() {
     const existingAllowedLinks = Array.isArray(districtSettings.allowedLinks)
       ? districtSettings.allowedLinks.map((link) => normalizeAllowedLinkEntry(link)).filter(Boolean)
       : [];
+    const existingCategories = Array.isArray(districtSettings.blockedCategories)
+      ? districtSettings.blockedCategories.map((category) => String(category || "").trim()).filter(Boolean)
+      : [];
 
     const mergedDomains = Array.from(new Set([...existingDomains, ...domains])).filter((d) => !isRestrictedDistrictDomain(d));
     const mergedAllowedLinks = Array.from(new Set([...existingAllowedLinks, ...allowedLinks, RESTRICTED_DISTRICT_DOMAIN]));
+    const mergedCategories = Array.from(new Set([...existingCategories, ...categories]));
 
     await update(ref(db, `districts/${districtId}/settings`), {
       blockedDomains: mergedDomains,
+      blockedCategories: mergedCategories,
       allowedLinks: mergedAllowedLinks,
       policyUpdatedAt: Date.now(),
       updatedAt: Date.now(),
@@ -2955,9 +2985,11 @@ async function saveClassroomSettings() {
 
     await propagateDistrictSettingsToClassrooms(districtId, {
       blockedDomains: mergedDomains,
-      blockedCategories: Array.isArray(districtSettings.blockedCategories)
-        ? districtSettings.blockedCategories
-        : []
+      blockedCategories: mergedCategories,
+      allowedLinks: mergedAllowedLinks,
+      strictAllowlistEnabled: Boolean(districtSettings.strictAllowlistEnabled),
+      blockGoogleLoginMethods: Boolean(districtSettings.blockGoogleLoginMethods),
+      blockMicrosoftLoginMethods: Boolean(districtSettings.blockMicrosoftLoginMethods)
     });
 
     blockedDomainsInput.value = mergedDomains.join(", ");
@@ -2965,17 +2997,6 @@ async function saveClassroomSettings() {
     statusBanner.textContent = "Blocked/unblocked link settings synced to all classrooms in your district.";
     return;
   }
-
-  const categories = Array.from(blockedCategoriesSelect.selectedOptions).map((option) => option.value);
-
-  await update(ref(db, `${classRefPath}/settings`), {
-    blockedDomains: domains,
-    allowedLinks,
-    showScreenWatchStatus,
-    blockedCategories: categories,
-    policyUpdatedAt: Date.now(),
-    updatedAt: Date.now()
-  });
 
   statusBanner.textContent = "Settings saved.";
 }
