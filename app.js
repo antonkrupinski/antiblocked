@@ -38,7 +38,6 @@ const authTopSigninBtn = document.getElementById("auth-top-signin-btn");
 const authEmailInput = document.getElementById("auth-email-input");
 const authPasswordInput = document.getElementById("auth-password-input");
 const authLoginBtn = document.getElementById("auth-login-btn");
-const authRegisterBtn = document.getElementById("auth-register-btn");
 const authStatus = document.getElementById("auth-status");
 const logoutBtn = document.getElementById("logout-btn");
 const statusBanner = document.getElementById("status-banner");
@@ -72,6 +71,8 @@ const districtAllowedLinksInput = document.getElementById("district-allowed-link
 const saveDistrictSettingsBtn = document.getElementById("save-district-settings-btn");
 const adminTabBtn = document.getElementById("admin-tab-btn");
 const logsTabBtn = document.getElementById("logs-tab-btn");
+const adminSidebarLinks = document.getElementById("admin-sidebar-links");
+const adminSidebarButtons = document.querySelectorAll(".admin-nav-btn");
 const districtLogsList = document.getElementById("district-logs-list");
 const districtScopeText = document.getElementById("district-scope");
 const districtDashboardTabBtn = document.getElementById("district-dashboard-tab-btn");
@@ -90,6 +91,10 @@ const districtStudentDetailTitle = document.getElementById("district-student-det
 const districtStudentDetailSummary = document.getElementById("district-student-detail-summary");
 const districtStudentScreentimeChart = document.getElementById("district-student-screentime-chart");
 const districtStudentWebsiteTimes = document.getElementById("district-student-website-times");
+const districtInviteRole = document.getElementById("district-invite-role");
+const districtInviteEmail = document.getElementById("district-invite-email");
+const createDistrictInviteBtn = document.getElementById("create-district-invite-btn");
+const districtInviteLinks = document.getElementById("district-invite-links");
 const adminDistrictCount = document.getElementById("admin-district-count");
 const adminPendingCount = document.getElementById("admin-pending-count");
 const adminTeacherCount = document.getElementById("admin-teacher-count");
@@ -183,6 +188,7 @@ let stopTeacherClassesWatcher = null;
 let stopTeacherDistrictWatcher = null;
 let stopUsersWatcher = null;
 let stopDistrictLogsWatcher = null;
+let stopDistrictInvitesWatcher = null;
 let lastApprovedState = false;
 let teacherHeartbeatTimer = null;
 let activeTeacherClassId = null;
@@ -191,6 +197,7 @@ let allClassroomSelection = new Set();
 let lastWelcomeEmail = "";
 let showingStudentHistory = false;
 let districtLogsCache = {};
+let districtInvitesCache = {};
 let adminInsightsTab = "dashboard";
 let districtScreenTimeCache = [];
 let selectedDistrictStudentKey = null;
@@ -219,7 +226,6 @@ authTopSigninBtn?.addEventListener("click", () => {
   authEmailInput?.focus();
 });
 authLoginBtn?.addEventListener("click", handleEmailPasswordLogin);
-authRegisterBtn?.addEventListener("click", handleEmailPasswordRegister);
 authPasswordInput?.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     handleEmailPasswordLogin();
@@ -303,6 +309,22 @@ districtScreentimeTabBtn?.addEventListener("click", () => {
 districtScreentimeSearch?.addEventListener("input", () => {
   renderDistrictStudentScreenTimeList();
 });
+
+adminSidebarButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const tabTarget = btn.getAttribute("data-tab");
+    if (tabTarget) {
+      activateTab(tabTarget);
+      return;
+    }
+    const sectionId = btn.getAttribute("data-admin-section");
+    if (!sectionId) return;
+    const section = document.getElementById(sectionId);
+    section?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+});
+
+createDistrictInviteBtn?.addEventListener("click", createDistrictInvite);
 window.addEventListener("beforeunload", () => {
   stopTeacherHeartbeat();
 });
@@ -418,29 +440,6 @@ async function handleEmailPasswordLogin() {
   try {
     await signInWithEmailAndPassword(auth, email, password);
     setAuthMessage("");
-  } catch (error) {
-    setAuthError(error);
-  }
-}
-
-async function handleEmailPasswordRegister() {
-  const email = normalizeEmail(authEmailInput?.value || "");
-  const password = String(authPasswordInput?.value || "");
-
-  if (!email || !password) {
-    setAuthMessage("Enter both email and password.");
-    return;
-  }
-
-  if (password.length < 6) {
-    setAuthMessage("Password must be at least 6 characters.");
-    return;
-  }
-
-  setAuthMessage("Creating account...");
-  try {
-    await createUserWithEmailAndPassword(auth, email, password);
-    setAuthMessage("Account created. Loading your workspace...");
   } catch (error) {
     setAuthError(error);
   }
@@ -631,6 +630,7 @@ function resetMainPanels() {
   settingsTabBtn.classList.add("hidden");
   adminTabBtn.classList.add("hidden");
   logsTabBtn.classList.add("hidden");
+  adminSidebarLinks?.classList.add("hidden");
   document.querySelectorAll(".tab-btn").forEach((btn) => btn.classList.remove("active"));
   document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
 }
@@ -647,6 +647,7 @@ function forceSectionVisibility(role) {
   adminTab.classList.toggle("hidden", !showAdmin);
   logsTab.classList.toggle("hidden", !showLogs);
   pendingView.classList.toggle("hidden", !showPending);
+  adminSidebarLinks?.classList.toggle("hidden", !showAdmin);
 }
 
 function activateTab(tabName) {
@@ -702,6 +703,7 @@ async function mountAdminPanel(profile) {
     renderAdminStats();
     renderDistrictSettingsPanel();
     watchDistrictLogs();
+    watchDistrictInvites();
     renderDistrictInsights();
   });
 
@@ -807,6 +809,120 @@ function renderDistrictLogs() {
     `;
     districtLogsList.appendChild(row);
   });
+}
+
+function watchDistrictInvites() {
+  const scopeDistrictId = getAdminScopeDistrictId();
+  if (stopDistrictInvitesWatcher) {
+    stopDistrictInvitesWatcher();
+    stopDistrictInvitesWatcher = null;
+  }
+
+  if (!scopeDistrictId) {
+    districtInvitesCache = {};
+    renderDistrictInviteLinks();
+    return;
+  }
+
+  stopDistrictInvitesWatcher = onValue(ref(db, `districtInvites/${scopeDistrictId}`), (snapshot) => {
+    districtInvitesCache = snapshot.val() || {};
+    renderDistrictInviteLinks();
+  });
+}
+
+function renderDistrictInviteLinks() {
+  if (!districtInviteLinks) return;
+  districtInviteLinks.innerHTML = "";
+
+  const invites = Object.entries(districtInvitesCache || {})
+    .map(([token, invite]) => ({ token, ...invite }))
+    .sort((a, b) => (b?.createdAt || 0) - (a?.createdAt || 0));
+
+  if (!invites.length) {
+    districtInviteLinks.innerHTML = '<p class="admin-empty">No invite links yet.</p>';
+    return;
+  }
+
+  const now = Date.now();
+  invites.forEach((invite) => {
+    const row = document.createElement("div");
+    row.className = "admin-row";
+    const expired = Number(invite?.expiresAt || 0) <= now;
+    const basePath = window.location.pathname.endsWith("index.html")
+      ? window.location.pathname.slice(0, -"index.html".length)
+      : window.location.pathname;
+    const url = `${window.location.origin}${basePath}invite.html?token=${encodeURIComponent(invite.token)}`;
+
+    row.innerHTML = `
+      <div class="admin-row-main">
+        <div class="admin-row-title">${invite?.role === "admin" ? "District Administrator" : "Teacher"} · ${invite?.email || "no-email"}</div>
+        <div class="admin-row-subtitle">${expired ? "Expired" : "Expires"}: ${invite?.expiresAt ? new Date(invite.expiresAt).toLocaleString() : "Unknown"}</div>
+      </div>
+      <div class="approval-controls admin-row-actions">
+        <button class="btn" data-copy-invite="${sanitizeText(url)}">Copy link</button>
+      </div>
+    `;
+
+    const copyBtn = row.querySelector("[data-copy-invite]");
+    copyBtn?.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(url);
+        statusBanner.textContent = "Invite link copied.";
+      } catch {
+        statusBanner.textContent = url;
+      }
+    });
+
+    districtInviteLinks.appendChild(row);
+  });
+}
+
+async function createDistrictInvite() {
+  const districtId = getAdminScopeDistrictId();
+  if (!districtId) {
+    statusBanner.textContent = "Select a district first.";
+    return;
+  }
+
+  const role = districtInviteRole?.value === "admin" ? "admin" : "teacher";
+  const email = normalizeEmail(districtInviteEmail?.value || "");
+  if (!email) {
+    statusBanner.textContent = "Enter an email for the invite.";
+    return;
+  }
+
+  const token = crypto.randomUUID().replaceAll("-", "");
+  const district = districtsCache[districtId] || {};
+  const expiresAt = Date.now() + (24 * 60 * 60 * 1000);
+
+  await set(ref(db, `districtInvites/${districtId}/${token}`), {
+    token,
+    districtId,
+    districtName: district?.name || "District",
+    role,
+    email,
+    invitedByUid: currentUser?.uid || "",
+    invitedByName: userProfile?.displayName || currentUser?.displayName || "Admin",
+    createdAt: Date.now(),
+    expiresAt,
+    used: false
+  });
+
+  await set(ref(db, `inviteTokens/${token}`), {
+    token,
+    districtId,
+    districtName: district?.name || "District",
+    role,
+    email,
+    invitedByUid: currentUser?.uid || "",
+    invitedByName: userProfile?.displayName || currentUser?.displayName || "Admin",
+    createdAt: Date.now(),
+    expiresAt,
+    used: false
+  });
+
+  districtInviteEmail.value = "";
+  statusBanner.textContent = "Invite link created.";
 }
 
 function setAdminInsightsTab(tabName) {
@@ -1478,6 +1594,7 @@ function renderDistrictList() {
         renderDistrictCode();
         renderDistrictSettingsPanel();
         watchDistrictLogs();
+        watchDistrictInvites();
         renderDistrictInsights();
       });
 
@@ -2709,6 +2826,10 @@ function cleanupAdminWatchers() {
   if (stopDistrictLogsWatcher) {
     stopDistrictLogsWatcher();
     stopDistrictLogsWatcher = null;
+  }
+  if (stopDistrictInvitesWatcher) {
+    stopDistrictInvitesWatcher();
+    stopDistrictInvitesWatcher = null;
   }
 }
 

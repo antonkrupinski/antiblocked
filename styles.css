@@ -43,6 +43,40 @@ p {
   margin: 0;
 }
 
+.contact-sales-body {
+  min-height: 100vh;
+  margin: 0;
+  background: linear-gradient(135deg, #0b2e7b, #1648a8);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.contact-sales-shell {
+  width: min(860px, 100%);
+  background: #ffffff;
+  border: 1px solid #d6e1ee;
+  border-radius: 18px;
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+  box-shadow: 0 24px 54px rgba(2, 12, 33, 0.28);
+}
+
+.contact-sales-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.subscription-shell {
+  width: min(980px, 100%);
+}
+
+.subscription-card {
+  margin: 0;
+}
+
 .hidden {
   display: none !important;
 }
@@ -1111,7 +1145,7 @@ p {
 
 .district-admin-shell {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: calc(100vh - 150px);
   border: 1px solid #d3dceb;
   border-radius: 14px;
@@ -1191,6 +1225,41 @@ p {
 .district-admin-main {
   padding: 24px 30px;
   background: #ffffff;
+}
+
+#admin-sidebar-links {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.admin-nav-btn {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #d7e3f1;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-nav-btn:hover {
+  background: #27435e;
+}
+
+.invite-controls {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.invite-controls select,
+.invite-controls input {
+  margin: 0;
 }
 
 .district-admin-page-header h2 {
@@ -2360,6 +2429,10 @@ select:focus {
     align-items: stretch;
   }
 
+  .invite-controls {
+    grid-template-columns: 1fr;
+  }
+
   .district-admin-toolbar-left,
   .district-admin-toolbar-right {
     width: 100%;
@@ -2395,5 +2468,602 @@ select:focus {
   .district-student-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+/* Interface refinement: compact, high-clarity workspace */
+:root {
+  --bg: #f4f7fb;
+  --bg-2: #e7edf5;
+  --card: #ffffff;
+  --card-solid: #ffffff;
+  --text: #142033;
+  --muted: #64748b;
+  --line: #dbe4ef;
+  --primary: #1769d1;
+  --primary-dark: #0e4d9f;
+  --accent: #2c8cff;
+  --danger: #c82e38;
+  --shadow: 0 10px 24px rgba(29, 53, 87, 0.08);
+  --shadow-soft: 0 8px 22px rgba(29, 53, 87, 0.07);
+  --radius-panel: 10px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-size: 14px;
+  background:
+    radial-gradient(circle at 92% -4%, rgba(47, 128, 237, 0.11), transparent 26%),
+    radial-gradient(circle at -8% 102%, rgba(41, 176, 218, 0.08), transparent 27%),
+    var(--bg);
+}
+
+::selection {
+  color: #fff;
+  background: #1769d1;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn,
+.auth-top-btn,
+.auth-email-btn,
+.auth-cta,
+.tab-btn,
+.admin-nav-btn,
+.district-admin-nav-link,
+.district-insights-tab,
+.teacher-view-tab,
+.class-plus-btn,
+.tab-action-btn {
+  transition:
+    transform 150ms cubic-bezier(.2, .85, .3, 1),
+    box-shadow 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    filter 150ms ease;
+}
+
+.btn:active,
+.auth-top-btn:active,
+.auth-email-btn:active,
+.auth-cta:active,
+.tab-btn:active,
+.admin-nav-btn:active,
+.class-plus-btn:active,
+.tab-action-btn:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.btn {
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(15, 48, 88, 0.14);
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, #217ee7, #1454b8);
+  box-shadow: 0 7px 16px rgba(23, 105, 209, 0.2);
+}
+
+.btn.primary:hover {
+  background: linear-gradient(135deg, #318df5, #155ec7);
+  box-shadow: 0 10px 20px rgba(23, 105, 209, 0.3);
+}
+
+textarea,
+input,
+select {
+  border-radius: 7px;
+  border-color: #d5dfec;
+  padding: 9px 10px;
+  font-size: 13px;
+  background: #fff;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+textarea:hover,
+input:hover,
+select:hover {
+  border-color: #b5c7dd;
+}
+
+textarea:focus,
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #3485e8;
+  box-shadow: 0 0 0 3px rgba(52, 133, 232, 0.15);
+}
+
+.topbar {
+  min-height: 62px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom-color: #d9e3ee;
+  box-shadow: 0 3px 14px rgba(15, 40, 75, 0.06);
+}
+
+.brand-block h2 {
+  font-size: 19px;
+  letter-spacing: -0.03em;
+}
+
+.brand-block p,
+#user-pill {
+  font-size: 11px;
+}
+
+#user-pill {
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: #f5f8fc;
+}
+
+.layout {
+  grid-template-columns: 224px minmax(0, 1fr);
+  min-height: calc(100vh - 62px);
+}
+
+.sidebar {
+  top: 62px;
+  max-height: calc(100vh - 62px);
+  padding: 13px 10px;
+  background:
+    linear-gradient(180deg, rgba(41, 86, 131, 0.18), transparent 42%),
+    linear-gradient(180deg, #102c49 0%, #0d223a 100%);
+}
+
+.tab-btn,
+.admin-nav-btn {
+  position: relative;
+  padding: 9px 11px;
+  font-size: 12px;
+  border-radius: 5px;
+}
+
+.tab-btn.active::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: #7fc4ff;
+}
+
+.content {
+  width: min(1540px, 100%);
+  padding: 18px;
+}
+
+.banner {
+  min-height: 34px;
+  margin-bottom: 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  background: linear-gradient(90deg, #f8fbff, #f0f7ff);
+}
+
+.card {
+  border-radius: 9px;
+  border-color: #d9e3ee;
+  padding: 15px;
+  margin-bottom: 12px;
+  box-shadow: 0 5px 16px rgba(30, 56, 91, 0.055);
+}
+
+.card h3 {
+  font-size: 16px;
+  margin-bottom: 9px;
+}
+
+.form-help,
+.admin-row-subtitle {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.teacher-session-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff, #fbfdff);
+}
+
+.teacher-session-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(#3b8df0, #2ab4d8);
+}
+
+.teacher-session-top h3 {
+  font-size: 23px;
+}
+
+.teacher-view-tabs {
+  gap: 19px;
+}
+
+.teacher-view-tab {
+  font-size: 12px;
+  padding-bottom: 8px;
+}
+
+.class-code-wrap {
+  gap: 7px;
+}
+
+.class-code-pill {
+  border-radius: 5px;
+  padding: 6px 10px;
+  min-width: 96px;
+  font-size: 13px;
+  background: linear-gradient(135deg, #287ee0, #1554af);
+}
+
+.screens-grid {
+  grid-template-columns: repeat(auto-fill, minmax(222px, 1fr));
+  gap: 10px;
+}
+
+.screen-card {
+  border-radius: 4px;
+  border-color: #cad7e6;
+  box-shadow: 0 2px 8px rgba(20, 47, 82, 0.1);
+}
+
+.screen-card:hover {
+  transform: translateY(-3px);
+  border-color: #71abec;
+  box-shadow: 0 13px 26px rgba(18, 70, 132, 0.18);
+}
+
+.screen-card-head {
+  padding: 7px 9px;
+  background: linear-gradient(180deg, #fff, #f9fbfe);
+}
+
+.screen-card img,
+.screen-offline-box {
+  height: 132px;
+  border-radius: 0;
+}
+
+.screen-offline-box {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.36) 25%, transparent 25%) -12px 0 / 24px 24px,
+    linear-gradient(225deg, rgba(255,255,255,.36) 25%, transparent 25%) -12px 0 / 24px 24px,
+    #dfe5ec;
+  color: #566579;
+  font-size: 13px;
+}
+
+.screen-meta {
+  padding: 8px 9px 9px;
+  background: #fff;
+}
+
+.screen-chip {
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 9px;
+}
+
+.student-row,
+.admin-row {
+  border-radius: 6px;
+  padding: 9px 10px;
+  transition: transform 150ms ease, border-color 150ms ease, background-color 150ms ease;
+}
+
+.student-row:hover,
+.admin-row:hover {
+  border-color: #b5d1ef;
+  background: #f7fbff;
+}
+
+.settings-group {
+  border-radius: 7px;
+  margin-bottom: 10px;
+}
+
+.settings-toggle {
+  padding: 11px 13px;
+  font-size: 13px;
+  background: linear-gradient(90deg, #f4f8fd, #eef5fc);
+}
+
+.settings-panel {
+  padding: 13px 13px 5px;
+}
+
+.modal {
+  backdrop-filter: blur(6px);
+  background: rgba(8, 22, 43, 0.62);
+}
+
+.modal-content {
+  border-radius: 10px;
+  padding: 17px;
+  border-color: #e0e8f2;
+}
+
+.screen-modal-left {
+  border-radius: 5px;
+  padding: 7px;
+}
+
+#screen-modal-image,
+.screen-modal-offline-placeholder {
+  border-radius: 2px;
+}
+
+.tabs-browser {
+  border-radius: 5px;
+}
+
+.tabs-header {
+  background: linear-gradient(135deg, #102b49, #1c426b);
+  padding: 8px 10px;
+}
+
+.tab-row {
+  padding: 9px 10px;
+  font-size: 12px;
+}
+
+.district-admin-shell {
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(25, 61, 105, 0.08);
+}
+
+.district-admin-main {
+  padding: 20px 22px;
+  background:
+    linear-gradient(180deg, rgba(240, 247, 255, 0.6), transparent 170px),
+    #fff;
+}
+
+.district-admin-page-header h2 {
+  font-size: 34px;
+}
+
+.district-admin-page-header p {
+  font-size: 13px;
+  color: #50627a;
+}
+
+.district-admin-state-tab {
+  font-size: 17px;
+}
+
+.district-insights-card,
+.district-admin-table-card,
+.district-admin-settings-card {
+  border-radius: 6px;
+}
+
+.district-summary-stat {
+  border-radius: 5px;
+  padding: 9px 10px;
+}
+
+.district-summary-stat strong {
+  font-size: 18px;
+}
+
+.district-bar-fill {
+  background: linear-gradient(90deg, #1769d1, #35a8ea);
+}
+
+.auth-topbar {
+  height: 64px;
+  padding: 0 5vw;
+}
+
+.auth-brand-logo {
+  width: 34px;
+  height: 34px;
+}
+
+.auth-brand-text {
+  font-size: 25px;
+}
+
+.auth-top-btn {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+.auth-hero {
+  padding-top: 34px;
+  padding-bottom: 14px;
+}
+
+.auth-subtitle {
+  font-size: clamp(15px, 1.5vw, 22px);
+}
+
+.auth-cta {
+  min-height: 41px;
+  padding: 8px 15px;
+  font-size: 13px;
+}
+
+.auth-login-panel,
+.contact-sales-shell {
+  border-radius: 10px;
+  border-color: rgba(208, 222, 238, 0.95);
+}
+
+.auth-login-panel {
+  width: min(630px, 92vw);
+  padding: 18px;
+}
+
+.auth-login-panel h2 {
+  font-size: 23px;
+}
+
+.auth-login-panel p,
+#auth-status {
+  font-size: 12px;
+}
+
+.contact-sales-body {
+  background:
+    radial-gradient(circle at 85% 10%, rgba(80, 163, 255, .35), transparent 28%),
+    radial-gradient(circle at 5% 95%, rgba(35, 210, 197, .18), transparent 30%),
+    linear-gradient(135deg, #061c4a, #0e4aa9);
+}
+
+.contact-sales-shell {
+  position: relative;
+  overflow: hidden;
+  padding: 26px;
+  gap: 14px;
+}
+
+.contact-sales-shell::before {
+  content: "";
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  top: -180px;
+  right: -130px;
+  background: radial-gradient(circle, rgba(41, 140, 255, .18), transparent 70%);
+  pointer-events: none;
+}
+
+.contact-sales-shell h1 {
+  font-size: clamp(25px, 4vw, 38px);
+}
+
+.contact-sales-shell > p {
+  color: #52627a;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.subscription-card {
+  padding: 16px;
+  background: linear-gradient(145deg, #fff, #f8fbff);
+}
+
+.subscription-card h2 {
+  font-size: 18px;
+}
+
+.subscription-card > p {
+  color: #1769d1;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+@media (max-width: 980px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    max-height: none;
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+  }
+
+  #admin-sidebar-links {
+    display: flex;
+    gap: 6px;
+    margin: 0;
+  }
+
+  .sidebar-title {
+    display: none;
+  }
+
+  .tab-btn.active::before {
+    display: none;
+  }
+
+  .auth-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-card {
+    min-height: 270px;
+  }
+
+  .auth-device-stack {
+    height: 280px;
+  }
+}
+
+@media (max-width: 700px) {
+  .content {
+    padding: 10px;
+  }
+
+  .topbar {
+    padding: 9px 12px;
+  }
+
+  .screens-grid {
+    grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+    gap: 8px;
+  }
+
+  .auth-topbar {
+    padding: 0 14px;
+  }
+
+  .auth-brand-text {
+    font-size: 20px;
+  }
+
+  .auth-hero {
+    width: 100%;
+    padding: 25px 18px 10px;
+  }
+
+  .auth-copy {
+    padding: 0;
+  }
+
+  .auth-kicker,
+  .auth-copy h1 {
+    font-size: clamp(37px, 12vw, 52px);
+  }
+
+  .auth-card {
+    min-height: 220px;
+  }
+
+  .auth-device-stack {
+    height: 220px;
   }
 }

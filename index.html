@@ -19,7 +19,7 @@
       </div>
       <div class="auth-topbar-actions">
         <button id="auth-top-signin-btn" class="auth-top-btn" type="button">Sign in</button>
-        <a id="contact-sales-btn" class="auth-top-btn primary" href="./contact-sales.html">Contact sales</a>
+        <a id="create-subscribe-btn" class="auth-top-btn primary" href="./subscription.html">Create and Subscribe</a>
       </div>
     </header>
 
@@ -33,7 +33,7 @@
         </p>
 
         <div class="auth-cta-row">
-          <a class="auth-cta primary" href="./contact-sales.html">Connect with sales</a>
+          <a class="auth-cta primary" href="./subscription.html">Create and Subscribe</a>
           <a class="auth-cta ghost" href="#auth-login-card">Explore products</a>
         </div>
       </section>
@@ -56,7 +56,6 @@
       <input id="auth-password-input" class="auth-email-input" type="password" placeholder="Enter password" aria-label="Password">
       <div class="auth-login-actions">
         <button id="auth-login-btn" class="auth-email-btn" type="button">Sign in</button>
-        <button id="auth-register-btn" class="auth-email-btn secondary" type="button">Create account</button>
       </div>
       <p id="auth-status"></p>
     </section>
@@ -110,6 +109,15 @@
         <button data-tab="settings" class="tab-btn">Settings</button>
         <button data-tab="admin" class="tab-btn hidden" id="admin-tab-btn">Admin</button>
         <button data-tab="logs" class="tab-btn hidden" id="logs-tab-btn">Logs</button>
+        <div id="admin-sidebar-links" class="hidden">
+          <p class="sidebar-title">District Admin</p>
+          <button class="admin-nav-btn" type="button" data-admin-section="district-dashboard-panel">Dashboard</button>
+          <button class="admin-nav-btn" type="button" data-admin-section="district-people-panel">Users</button>
+          <button class="admin-nav-btn" type="button" data-admin-section="district-classrooms-panel">Classrooms</button>
+          <button class="admin-nav-btn" type="button" data-admin-section="district-settings-panel">Product Settings</button>
+          <button class="admin-nav-btn" type="button" data-tab="logs">Logs</button>
+          <button class="admin-nav-btn" type="button" data-tab="logs">Diagnostics</button>
+        </div>
       </aside>
 
       <section class="content">
@@ -230,34 +238,6 @@
 
         <section id="admin-tab" class="tab">
           <div class="district-admin-shell">
-            <aside class="district-admin-nav">
-              <button class="district-admin-org" type="button">
-                <img src="../extension/antiblocked.png" alt="AntiBlocked logo">
-                <span>AntiBlocked Org Management</span>
-                <span>▾</span>
-              </button>
-
-              <div class="district-admin-nav-group">
-                <h4>User Management</h4>
-                <button type="button" class="district-admin-nav-link active">Districts</button>
-                <button type="button" class="district-admin-nav-link">Staff</button>
-                <button type="button" class="district-admin-nav-link">Parents &amp; Guardians</button>
-              </div>
-
-              <div class="district-admin-nav-group">
-                <h4>Configuration</h4>
-                <button type="button" class="district-admin-nav-link">Data Sources</button>
-                <button type="button" class="district-admin-nav-link">Installation</button>
-                <button type="button" class="district-admin-nav-link">Product Settings</button>
-              </div>
-
-              <div class="district-admin-nav-group">
-                <h4>Reporting</h4>
-                <button type="button" class="district-admin-nav-link">Logs</button>
-                <button type="button" class="district-admin-nav-link">Diagnostics</button>
-              </div>
-            </aside>
-
             <div class="district-admin-main">
               <div class="district-admin-page-header">
                 <h2>District Administrator Panel</h2>
@@ -378,14 +358,29 @@
                   <div id="pending-teachers" class="admin-list district-admin-table-list"></div>
                 </section>
 
-                <section class="card district-admin-table-card district-admin-table-wide">
+                <section id="district-people-panel" class="card district-admin-table-card">
+                  <div class="admin-panel-head">
+                    <h3>Teachers and Administrators</h3>
+                  </div>
+                  <div class="invite-controls">
+                    <select id="district-invite-role">
+                      <option value="teacher">Teacher</option>
+                      <option value="admin">District Administrator</option>
+                    </select>
+                    <input id="district-invite-email" type="email" placeholder="person@school.edu">
+                    <button id="create-district-invite-btn" class="btn primary" type="button">Create invite link</button>
+                  </div>
+                  <div id="district-invite-links" class="admin-list district-admin-table-list"></div>
+                </section>
+
+                <section id="district-classrooms-panel" class="card district-admin-table-card district-admin-table-wide">
                   <div class="admin-panel-head">
                     <h3>District Classrooms</h3>
                   </div>
                   <div id="district-classrooms" class="admin-list district-admin-table-list"></div>
                 </section>
 
-                <section class="card district-admin-settings-card district-admin-table-wide">
+                <section id="district-settings-panel" class="card district-admin-settings-card district-admin-table-wide">
                   <div class="admin-panel-head">
                     <h3>District Settings · Global Blocking</h3>
                     <p class="form-help">These settings apply across the selected district.</p>

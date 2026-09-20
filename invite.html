@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>District Invite · AntiBlocked</title>
+  <link rel="icon" type="image/png" href="https://media.discordapp.net/attachments/1481400882464555242/1550636850660515851/antiblocked-logo.png?ex=6aaf0e9a&is=6aadbd1a&hm=fe86506fbddbaad2894cb32f2a5bf1a51f4f9437324fcb8db06d277052d03bd3&=&format=webp&quality=lossless&width=1520&height=1520">
+  <link rel="stylesheet" href="./styles.css?v=20260920a">
+</head>
+<body class="contact-sales-body">
+  <main class="contact-sales-shell subscription-shell">
+    <img src="../extension/antiblocked.png" alt="AntiBlocked logo" class="contact-sales-logo">
+    <h1>District Invitation</h1>
+    <p id="invite-headline">Loading invitation…</p>
+
+    <section class="card subscription-card" id="invite-form-card">
+      <label>Email</label>
+      <input id="invite-email" type="email" placeholder="you@school.edu">
+      <label>Password</label>
+      <input id="invite-password" type="password" placeholder="Create password">
+
+      <div id="invite-teacher-fields" class="hidden">
+        <label>Your name</label>
+        <input id="invite-teacher-name" type="text" placeholder="Alex Smith">
+        <label>Classroom name</label>
+        <input id="invite-class-name" type="text" placeholder="Algebra 1 - Period 2">
+        <label>Subject</label>
+        <input id="invite-class-subject" type="text" placeholder="Math">
+      </div>
+
+      <div id="invite-admin-fields" class="hidden">
+        <label>First name</label>
+        <input id="invite-first-name" type="text" placeholder="First name">
+        <label>Last name</label>
+        <input id="invite-last-name" type="text" placeholder="Last name">
+      </div>
+
+      <button id="accept-invite-btn" class="btn primary" type="button">Create account</button>
+    </section>
+
+    <p id="invite-status" class="form-help"></p>
+  </main>
+
+  <script type="module" src="./invite.js"></script>
+</body>
+</html>

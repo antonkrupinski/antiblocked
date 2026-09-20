@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create and Subscribe · AntiBlocked</title>
+  <link rel="icon" type="image/png" href="https://media.discordapp.net/attachments/1481400882464555242/1550636850660515851/antiblocked-logo.png?ex=6aaf0e9a&is=6aadbd1a&hm=fe86506fbddbaad2894cb32f2a5bf1a51f4f9437324fcb8db06d277052d03bd3&=&format=webp&quality=lossless&width=1520&height=1520">
+  <link rel="stylesheet" href="./styles.css?v=20260920a">
+</head>
+<body class="contact-sales-body">
+  <main class="contact-sales-shell subscription-shell">
+    <img src="../extension/antiblocked.png" alt="AntiBlocked logo" class="contact-sales-logo">
+    <h1>Create and Subscribe</h1>
+
+    <section class="card subscription-card">
+      <h2>District Plan</h2>
+      <p>$12.50 per student</p>
+      <label>Email</label>
+      <input id="district-email" type="email" placeholder="admin@district.edu">
+      <label>Password</label>
+      <input id="district-password" type="password" placeholder="Create password">
+      <label>District name</label>
+      <input id="district-name" type="text" placeholder="Riverbend District">
+      <label>Student count</label>
+      <input id="district-students" type="number" min="1" placeholder="1200">
+      <button id="district-subscribe-btn" class="btn primary" type="button">Pay with Stripe and Create District</button>
+    </section>
+
+    <section class="card subscription-card">
+      <h2>Teacher Plan</h2>
+      <p>$3.50 per student (max 40 students)</p>
+      <label>Email</label>
+      <input id="teacher-email" type="email" placeholder="teacher@school.edu">
+      <label>Password</label>
+      <input id="teacher-password" type="password" placeholder="Create password">
+      <label>District name</label>
+      <input id="teacher-district-name" type="text" placeholder="Riverbend District">
+      <label>Classroom name</label>
+      <input id="teacher-class-name" type="text" placeholder="Algebra 1 - Period 2">
+      <label>Your name</label>
+      <input id="teacher-name" type="text" placeholder="Alex Smith">
+      <label>Subject</label>
+      <input id="teacher-subject" type="text" placeholder="Math">
+      <label>Student count (max 40)</label>
+      <input id="teacher-students" type="number" min="1" max="40" placeholder="30">
+      <button id="teacher-subscribe-btn" class="btn primary" type="button">Pay with Stripe and Create Teacher Plan</button>
+    </section>
+
+    <p id="subscription-status" class="form-help"></p>
+    <a class="auth-cta ghost" href="./index.html">Back to sign in</a>
+  </main>
+
+  <script type="module" src="./subscription.js"></script>
+</body>
+</html>
